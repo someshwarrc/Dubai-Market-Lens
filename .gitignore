@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.sites-deploy/
+.vscode/
+skill-observations/
+source-data/
+*.tgz
+*.tar.gz
+.env
+.env.*
+!.env.example
