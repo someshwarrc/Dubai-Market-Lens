@@ -144,6 +144,7 @@ export default function FilterPanel({ filters, options, onChange, onReset }) {
             <MultiFilter label="Freehold status" options={options.tenures} value={filters.tenures} onChange={(value) => onFieldChange('tenures', value)} />
             <MultiFilter label="Usage" options={options.usages} value={filters.usages} onChange={(value) => onFieldChange('usages', value)} />
             <MultiFilter label="Rooms" options={options.rooms} value={filters.rooms} onChange={(value) => onFieldChange('rooms', value)} />
+            <MultiFilter label="Developers" options={options.developers} value={filters.developers} onChange={(value) => onFieldChange('developers', value)} />
             <MultiFilter label="Projects" options={options.projects} value={filters.projects} onChange={(value) => onFieldChange('projects', value)} />
           </Stack>
         </AccordionDetails>

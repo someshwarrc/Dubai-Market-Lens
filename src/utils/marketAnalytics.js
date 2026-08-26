@@ -22,6 +22,7 @@ export const createDefaultFilters = () => ({
   usages: [],
   rooms: [],
   projects: [],
+  developers: [],
   metros: [],
   malls: [],
   landmarks: [],
@@ -45,6 +46,7 @@ export const filterTransactions = (rows, filters) =>
     includesAny(filters.usages, row.usage.toLowerCase()) &&
     includesAny(filters.rooms, row.rooms.toLowerCase()) &&
     includesAny(filters.projects, row.project.toLowerCase()) &&
+    includesAny(filters.developers, row.developerKey) &&
     includesAny(filters.metros, row.nearestMetro.toLowerCase()) &&
     includesAny(filters.malls, row.nearestMall.toLowerCase()) &&
     includesAny(filters.landmarks, row.nearestLandmark.toLowerCase()) &&
@@ -301,8 +303,271 @@ export const buildFilterOptions = (transactions, valuations) => {
     usages: unique(transactions.map((row) => option(row.usage))),
     rooms: unique(transactions.map((row) => option(row.rooms))),
     projects: unique(transactions.map((row) => option(row.project))),
+    developers: unique(transactions.filter((row) => row.developerKey).map((row) => ({ value: row.developerKey, label: row.developer }))),
     metros: unique(transactions.map((row) => option(row.nearestMetro))),
     malls: unique(transactions.map((row) => option(row.nearestMall))),
     landmarks: unique(transactions.map((row) => option(row.nearestLandmark))),
+  };
+};
+
+export const TREND_DIMENSIONS = {
+  area: { key: 'areaKey', label: 'area', heading: 'Area' },
+  developer: { key: 'developerKey', label: 'developer', heading: 'Developer' },
+  project: { key: 'projectKey', label: 'project', heading: 'Project' },
+  propertyType: { key: 'propertyTypeKey', label: 'propertyType', heading: 'Property type' },
+};
+
+const DAY_MS = 24 * 60 * 60 * 1_000;
+
+const asUtcDate = (value) => {
+  const milliseconds = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(milliseconds) ? milliseconds : 0;
+};
+
+const toIsoDate = (milliseconds) => new Date(milliseconds).toISOString().slice(0, 10);
+
+const eligibleTrendSale = (row) =>
+  row.group.toLowerCase() === 'sales' &&
+  row.assetCount === 1 &&
+  row.actualArea > 0 &&
+  row.value >= 1_000 &&
+  asUtcDate(row.date) > 0;
+
+const getDimensionValue = (row, dimension) => {
+  const config = TREND_DIMENSIONS[dimension];
+  if (!config) return null;
+  const key = row[config.key];
+  const label = row[config.label];
+  if (!key || !label || key === 'unspecified' || key === 'unknown') return null;
+  return { key, label };
+};
+
+const monthlyMedians = (rows) => {
+  const months = new Map();
+  rows.forEach((row) => {
+    const values = months.get(row.month) ?? [];
+    values.push(row.value / row.actualArea);
+    months.set(row.month, values);
+  });
+  return [...months.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([month, values]) => ({ month, medianPsm: median(values), sales: values.length }));
+};
+
+const trendConsistency = (history, direction) => {
+  if (history.length < 3 || direction === 0) return 0.35;
+  const movements = [];
+  for (let index = 1; index < history.length; index += 1) {
+    const previous = history[index - 1].medianPsm;
+    const current = history[index].medianPsm;
+    if (previous <= 0 || current <= 0) continue;
+    const movement = (current - previous) / previous;
+    if (Math.abs(movement) < 0.005) movements.push(0);
+    else movements.push(Math.sign(movement));
+  }
+  if (!movements.length) return 0.35;
+  const aligned = movements.filter((movement) => movement === direction || movement === 0).length;
+  return aligned / movements.length;
+};
+
+const confidenceForSamples = (recentCount, priorCount, consistency) => {
+  const minimum = Math.min(recentCount, priorCount);
+  if (minimum < 5) return 'Limited';
+  if (minimum >= 20 && consistency >= 0.6) return 'High';
+  if (minimum >= 10) return 'Medium';
+  return 'Low';
+};
+
+const calculateTrendMetrics = (rows, anchorMilliseconds, windowDays = 90) => {
+  const recentStart = anchorMilliseconds - (windowDays - 1) * DAY_MS;
+  const priorEnd = recentStart - DAY_MS;
+  const priorStart = priorEnd - (windowDays - 1) * DAY_MS;
+  const periodRows = rows.filter((row) => {
+    const date = asUtcDate(row.date);
+    return date >= priorStart && date <= anchorMilliseconds;
+  });
+  const recentRows = periodRows.filter((row) => asUtcDate(row.date) >= recentStart);
+  const priorRows = periodRows.filter((row) => asUtcDate(row.date) <= priorEnd);
+  const recentMedianPsm = median(recentRows.map((row) => row.value / row.actualArea));
+  const priorMedianPsm = median(priorRows.map((row) => row.value / row.actualArea));
+  const changePct = priorMedianPsm > 0 ? ((recentMedianPsm - priorMedianPsm) / priorMedianPsm) * 100 : null;
+  const direction = !Number.isFinite(changePct) || Math.abs(changePct) < 2 ? 0 : Math.sign(changePct);
+  const history = monthlyMedians(periodRows);
+  const consistency = trendConsistency(history, direction);
+  const confidence = confidenceForSamples(recentRows.length, priorRows.length, consistency);
+  const minimumSample = Math.min(recentRows.length, priorRows.length);
+
+  let trendScore = null;
+  if (confidence !== 'Limited' && Number.isFinite(changePct)) {
+    if (direction === 0) {
+      trendScore = 0;
+    } else {
+      const magnitude = Math.min(1, Math.abs(changePct) / 25);
+      const volume = Math.min(1, Math.log10(minimumSample + 1) / Math.log10(51));
+      const confidenceWeight = confidence === 'High' ? 1 : confidence === 'Medium' ? 0.86 : 0.72;
+      const strength = 100 * (0.6 * magnitude + 0.25 * consistency + 0.15 * volume) * confidenceWeight;
+      trendScore = direction * Math.min(100, strength);
+    }
+  }
+
+  return {
+    recentMedianPsm,
+    priorMedianPsm,
+    changePct,
+    recentSales: recentRows.length,
+    priorSales: priorRows.length,
+    consistency: consistency * 100,
+    confidence,
+    direction: confidence === 'Limited' ? 'Limited' : direction > 0 ? 'Rising' : direction < 0 ? 'Falling' : 'Stable',
+    trendScore,
+    history,
+    period: {
+      priorStart: toIsoDate(priorStart),
+      priorEnd: toIsoDate(priorEnd),
+      recentStart: toIsoDate(recentStart),
+      recentEnd: toIsoDate(anchorMilliseconds),
+    },
+  };
+};
+
+export const buildPriceTrends = (
+  transactions,
+  opportunities,
+  dimension = 'area',
+  windowDays = 90,
+) => {
+  const eligible = transactions.filter(eligibleTrendSale);
+  const anchorMilliseconds = eligible.reduce(
+    (latest, row) => Math.max(latest, asUtcDate(row.date)),
+    0,
+  );
+  if (!anchorMilliseconds) {
+    return { rows: [], eligibleSales: 0, linkedSales: 0, period: null };
+  }
+
+  const groups = new Map();
+  eligible.forEach((row) => {
+    const value = getDimensionValue(row, dimension);
+    if (!value) return;
+    const group = groups.get(value.key) ?? { key: value.key, label: value.label, rows: [] };
+    group.rows.push(row);
+    groups.set(value.key, group);
+  });
+
+  const opportunityScoresByGroup = new Map();
+  opportunities.forEach((row) => {
+    if (row.discountPct <= 0 || !Number.isFinite(row.opportunityScore)) return;
+    const value = getDimensionValue(row, dimension);
+    if (!value) return;
+    const scores = opportunityScoresByGroup.get(value.key) ?? [];
+    scores.push(row.opportunityScore);
+    opportunityScoresByGroup.set(value.key, scores);
+  });
+
+  const rows = [...groups.values()]
+    .map((group) => {
+      const metrics = calculateTrendMetrics(group.rows, anchorMilliseconds, windowDays);
+      const areaCounts = new Map();
+      group.rows.forEach((row) => areaCounts.set(row.areaKey, (areaCounts.get(row.areaKey) ?? 0) + 1));
+      const primaryAreaKey = [...areaCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? '';
+      const primaryArea = group.rows.find((row) => row.areaKey === primaryAreaKey)?.area ?? '';
+      const opportunityScores = opportunityScoresByGroup.get(group.key) ?? [];
+      return {
+        id: `${dimension}-${group.key}`,
+        dimension,
+        key: group.key,
+        label: group.label,
+        primaryArea,
+        primaryAreaKey,
+        totalSales: group.rows.length,
+        ...metrics,
+        opportunityIndex: opportunityScores.length ? median(opportunityScores) : null,
+        opportunityMatches: opportunityScores.length,
+      };
+    })
+    .filter((row) => row.recentSales > 0 || row.priorSales > 0)
+    .sort((left, right) => {
+      if (left.confidence === 'Limited' && right.confidence !== 'Limited') return 1;
+      if (right.confidence === 'Limited' && left.confidence !== 'Limited') return -1;
+      return (right.trendScore ?? -Infinity) - (left.trendScore ?? -Infinity) || right.recentSales - left.recentSales;
+    });
+
+  return {
+    rows,
+    eligibleSales: eligible.length,
+    linkedSales: dimension === 'developer' ? eligible.filter((row) => row.developerKey).length : eligible.length,
+    period: rows[0]?.period ?? null,
+  };
+};
+
+export const buildTrendHistory = (transactions, dimension, key) => {
+  return monthlyMedians(
+    transactions.filter(
+      (row) => eligibleTrendSale(row) && (!key || getDimensionValue(row, dimension)?.key === key),
+    ),
+  ).map((row) => ({
+    ...row,
+    label: new Date(`${row.month}-01T00:00:00Z`).toLocaleDateString('en-AE', { month: 'short', year: '2-digit' }),
+  }));
+};
+
+export const buildTrendMapPoints = (
+  transactions,
+  areaLocations,
+  dimension,
+  key,
+  windowDays = 90,
+) => {
+  const selectedRows = transactions.filter(
+    (row) => eligibleTrendSale(row) && (!key || getDimensionValue(row, dimension)?.key === key),
+  );
+  const anchorMilliseconds = selectedRows.reduce(
+    (latest, row) => Math.max(latest, asUtcDate(row.date)),
+    0,
+  );
+  if (!anchorMilliseconds) return { points: [], areaCount: 0, mappedAreaCount: 0 };
+
+  const locationByArea = new Map(areaLocations.map((location) => [location.areaKey, location]));
+  const areas = new Map();
+  selectedRows.forEach((row) => {
+    const group = areas.get(row.areaKey) ?? { key: row.areaKey, label: row.area, rows: [] };
+    group.rows.push(row);
+    areas.set(row.areaKey, group);
+  });
+
+  const points = [...areas.values()].flatMap((group) => {
+    const metrics = calculateTrendMetrics(group.rows, anchorMilliseconds, windowDays);
+    let location = locationByArea.get(group.key);
+    let locationBasis = 'Transaction area';
+    if (!location) {
+      const registeredAreaCounts = new Map();
+      group.rows.forEach((row) => {
+        if (row.projectRegisteredAreaKey) {
+          registeredAreaCounts.set(
+            row.projectRegisteredAreaKey,
+            (registeredAreaCounts.get(row.projectRegisteredAreaKey) ?? 0) + 1,
+          );
+        }
+      });
+      const fallbackKey = [...registeredAreaCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0];
+      location = fallbackKey ? locationByArea.get(fallbackKey) : null;
+      locationBasis = 'Registered project area fallback';
+    }
+    if (!location?.latitude || !location?.longitude || !metrics.recentSales) return [];
+    return [{
+      id: group.key,
+      area: group.label,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      locationConfidence: location.confidence,
+      locationBasis,
+      ...metrics,
+    }];
+  });
+
+  return {
+    points,
+    areaCount: areas.size,
+    mappedAreaCount: points.length,
   };
 };

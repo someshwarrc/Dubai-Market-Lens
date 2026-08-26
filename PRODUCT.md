@@ -10,7 +10,7 @@ Dubai real-estate brokers and consumers comparing current market activity with v
 
 ## Product Purpose
 
-Turn Dubai transaction and valuation records into a practical opportunity-discovery dashboard. Success means a user can filter to a relevant market segment, understand its price-per-square-metre context, identify potentially undervalued transactions, and inspect the underlying records without needing a separate analysis tool.
+Turn Dubai transaction, valuation, and project records into a practical opportunity-discovery dashboard. Success means a user can filter to a relevant market segment, compare price momentum by area, developer, project, or property type, identify potentially undervalued transactions, and inspect the underlying evidence without needing a separate analysis tool.
 
 ## Brand Personality
 
@@ -27,6 +27,8 @@ Avoid speculative trading aesthetics, decorative gradients, glass-heavy dashboar
 3. Filter before explaining: users should be able to narrow the market quickly, then see every KPI and chart respond consistently.
 4. Progress from signal to source: high-level KPIs should lead naturally to ranked opportunities and then to the underlying transaction and valuation records.
 5. Prefer commercial clarity over visual novelty: use restrained Material UI patterns, disciplined color, and concise market language.
+6. Keep signals independent: transaction price trends and valuation-backed opportunity scores must expose separate methodologies and never be blended into an opaque composite.
+7. Treat mapped locations as context: area centroids are approximate and must never imply exact project, building, or unit coordinates.
 
 ## Accessibility & Inclusion
 

@@ -26,6 +26,9 @@ const staticSitesWorker = () => ({
 export default defineConfig({
   plugins: [react(), sites(), staticSitesWorker()],
   publicDir: 'files',
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
   build: {
     sourcemap: true,
   },

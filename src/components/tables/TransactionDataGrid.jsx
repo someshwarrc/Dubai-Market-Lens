@@ -10,6 +10,7 @@ const columns = [
   { field: 'procedure', headerName: 'Procedure', minWidth: 200, flex: 1 },
   { field: 'area', headerName: 'Area', minWidth: 150, flex: 0.8 },
   { field: 'project', headerName: 'Project', minWidth: 170, flex: 0.9 },
+  { field: 'developer', headerName: 'Developer', minWidth: 190, flex: 1, renderCell: ({ value }) => value || '—' },
   { field: 'propertyType', headerName: 'Type', width: 105 },
   { field: 'subType', headerName: 'Subtype', width: 140 },
   { field: 'rooms', headerName: 'Rooms', width: 95 },
@@ -40,4 +41,3 @@ export default function TransactionDataGrid({ rows }) {
     </DataTableFrame>
   );
 }
-

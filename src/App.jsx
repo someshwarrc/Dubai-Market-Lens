@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { lazy, Suspense, useDeferredValue, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -40,10 +40,12 @@ import {
 } from './utils/marketAnalytics';
 import { formatNumber } from './utils/formatters';
 
+const TrendDiscovery = lazy(() => import('./components/trends/TrendDiscovery'));
+
 const viewMeta = {
   opportunities: {
-    title: 'Valuation opportunity radar',
-    description: 'Find recorded sales priced below comparable valuation evidence, then inspect the cohort behind every signal.',
+    title: 'Opportunity radar',
+    description: 'Compare independent transaction price trends with valuation-backed opportunity signals, then inspect the evidence behind each result.',
   },
   overview: {
     title: 'Dubai market overview',
@@ -102,30 +104,40 @@ function PageIntro({ activeView, transactionCount, valuationCount }) {
   );
 }
 
-function OpportunityView({ summary, opportunities, areaOpportunities, monthlyTrend }) {
+function OpportunityView({ summary, opportunities, areaOpportunities, monthlyTrend, transactions, areaLocations }) {
   const positiveRows = useMemo(() => opportunities.filter((row) => row.discountPct > 0), [opportunities]);
   return (
-    <Stack spacing={4}>
-      <KpiStrip summary={summary} />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.12fr) minmax(420px, .88fr)' }, gap: 3, alignItems: 'start' }}>
-        <AreaOpportunityChart data={areaOpportunities} />
-        <MonthlyPriceChart data={monthlyTrend} />
-      </Box>
-      <Stack spacing={2}>
+    <Stack spacing={6}>
+      <Suspense fallback={<Skeleton variant="rounded" height={720} />}>
+        <TrendDiscovery transactions={transactions} opportunities={opportunities} areaLocations={areaLocations} />
+      </Suspense>
+
+      <Stack component="section" spacing={4} sx={{ pt: 5, borderTop: 1, borderColor: 'divider' }}>
         <SectionHeader
-          title="Ranked opportunities"
-          description={`${formatNumber(positiveRows.length)} single-asset sales have a matched valuation benchmark and a positive price gap. Signal strength combines the gap, cohort quality, and cohort size.`}
-          action={<Chip label="Sorted by signal strength" color="success" variant="outlined" />}
+          title="Valuation opportunity index"
+          description="The original transaction-level index remains unchanged. It compares recorded sale AED/m² with valuation cohorts and exposes the benchmark basis, sample size, and confidence."
         />
-        {positiveRows.length ? (
-          <OpportunityDataGrid rows={positiveRows} />
-        ) : (
-          <Alert severity="info">No positively discounted, valuation-matched sales meet the current filters. Broaden the market segment or date range.</Alert>
-        )}
+        <KpiStrip summary={summary} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.12fr) minmax(420px, .88fr)' }, gap: 3, alignItems: 'start' }}>
+          <AreaOpportunityChart data={areaOpportunities} />
+          <MonthlyPriceChart data={monthlyTrend} />
+        </Box>
+        <Stack spacing={2}>
+          <SectionHeader
+            title="Ranked valuation opportunities"
+            description={`${formatNumber(positiveRows.length)} single-asset sales have a matched valuation benchmark and a positive price gap. Signal strength combines the gap, cohort quality, and cohort size.`}
+            action={<Chip label="Sorted by signal strength" color="success" variant="outlined" />}
+          />
+          {positiveRows.length ? (
+            <OpportunityDataGrid rows={positiveRows} />
+          ) : (
+            <Alert severity="info">No positively discounted, valuation-matched sales meet the current filters. Broaden the market segment or date range.</Alert>
+          )}
+        </Stack>
+        <Alert severity="warning" variant="outlined">
+          Opportunity gaps are indicative comparisons, not professional appraisals. Multi-asset transaction bundles, nominal valuations below AED 1,000, and records without usable area are excluded from opportunity scoring.
+        </Alert>
       </Stack>
-      <Alert severity="warning" variant="outlined">
-        Opportunity gaps are indicative comparisons, not professional appraisals. Multi-asset transaction bundles, nominal valuations below AED 1,000, and records without usable area are excluded from opportunity scoring.
-      </Alert>
     </Stack>
   );
 }
@@ -216,6 +228,8 @@ function AppContent() {
                 opportunities={analytics.opportunities}
                 areaOpportunities={analytics.areaOpportunities}
                 monthlyTrend={analytics.monthlyTrend}
+                transactions={analytics.transactions}
+                areaLocations={data.areaLocations}
               />
             )}
             {activeView === 'overview' && (

@@ -2,7 +2,7 @@
 
 ## 1. Executive summary
 
-The two source datasets do **not** contain a shared property identifier, parcel ID, unit ID, valuation ID, transaction ID, project ID, or other key that can support a defensible row-to-row join. For the browser MVP, both datasets are packaged into separate tables in a compressed SQLite database; this storage change does not create a relationship between them.
+The transaction and valuation datasets do **not** contain a shared property identifier, parcel ID, unit ID, valuation ID, transaction ID, project ID, or other key that can support a defensible row-to-row join. The compressed SQLite package also contains a project registry and cached area centroids. These enrich transaction exploration but do not create a transaction-to-valuation relationship.
 
 The dashboard therefore does **not** claim that a particular valuation record belongs to a particular transaction. It performs a **cohort comparison**:
 
@@ -38,13 +38,26 @@ The resulting valuation gap is an investigative signal, not an appraisal and not
 
 Consequently, the dashboard cannot determine that valuation row `V` is the valuation of transaction row `T`.
 
+### 2.3 Project registry linkage
+
+The project registry supplies project number, developer, registration area, status, completion percentage, dates, value, and descriptive fields. Transactions are enriched only when normalized `PROJECT_EN` has exactly one registry match.
+
+- Exact unique name: attach the registry project and developer metadata.
+- Duplicate name: mark the transaction link as `Ambiguous` and do not assign a developer.
+- Missing name: leave developer metadata unavailable.
+
+This exact-name rule links 210 transaction project names in the current snapshot. It deliberately avoids fuzzy matching because similar marketing names can refer to different registered projects or developers.
+
 ## 3. End-to-end calculation flow
 
 ```mermaid
 flowchart TD
     DB["Compressed SQLite database"] --> TX["Transaction table"]
     DB --> VAL["Valuation table"]
+    DB --> PRJ["Project registry table"]
+    DB --> LOC["Cached area locations"]
     TX --> TXN["Normalize fields and count rows per transaction number"]
+    PRJ --> TXN
     VAL --> VALN["Normalize fields and calculate valuation AED/m²"]
 
     FILTERS["Selected dashboard filters"] --> TXF["Filter transactions"]
@@ -66,6 +79,9 @@ flowchart TD
 
     TXF --> MARKET["Monthly and property-type market summaries"]
     VALF --> MARKET
+    TXF --> TRENDS["90-day median AED/m² trend groups"]
+    LOC --> MAP["Approximate area trend map"]
+    TRENDS --> MAP
 ```
 
 ## 4. Normalization
@@ -123,6 +139,7 @@ All analytics are recalculated after filters change.
 - Freehold status
 - Usage
 - Rooms
+- Developer
 - Project
 - Nearest metro
 - Nearest mall
@@ -331,6 +348,27 @@ For each property type:
 
 Again, these are side-by-side cohort medians, not matched properties.
 
+### 10.5 Price Trend Score
+
+The Price Trend Score is calculated independently from the valuation Opportunity Index. Eligible trend rows are single-asset sales with recorded value of at least AED 1,000, positive actual area, and a valid date.
+
+For each selected dimension (`Area`, `Developer`, `Project`, or `Property type`):
+
+1. Anchor the comparison on the latest eligible filtered sale date.
+2. Calculate median sale AED/m² for the latest 90 days.
+3. Calculate the same median for the preceding 90 days.
+4. Require at least five eligible sales in each period for a scored trend.
+5. Combine absolute median change (60%), direction consistency across monthly medians (25%), and sample volume (15%).
+6. Apply a confidence weight based on period samples and monthly consistency.
+
+The result is signed from `-100` to `100`: positive is rising, negative is falling, and zero is stable within a two-percentage-point deadband. Rows with insufficient period samples remain visible as `Limited` but receive no score.
+
+The Opportunity Index column in the trend table is the median of existing positive transaction-level Opportunity Index scores within that group. It is supporting context, not an input to the Price Trend Score.
+
+### 10.6 Approximate area map
+
+Area names are geocoded once during data preparation, cached locally, and packaged into the SQLite `area_locations` table. The browser never sends geocoding requests. Map bubbles represent approximate area centroids; their size reflects recent sales volume and their color reflects trend direction. They must not be interpreted as exact project, building, or unit coordinates.
+
 ## 11. Material limitations
 
 1. **No direct property matching.** The dashboard cannot establish that a valuation belongs to a transaction.
@@ -342,6 +380,8 @@ Again, these are side-by-side cohort medians, not matched properties.
 7. **Taxonomy differences remain.** Lowercasing and whitespace normalization do not reconcile semantic differences such as `Villa` versus `Residential / Villas`.
 8. **Coverage can be misleading.** Dubai-wide property-type fallbacks can produce high coverage even when local valuation evidence is absent.
 9. **Indicative gaps are not appraisal deltas.** Different properties within the same cohort can vary materially by age, condition, view, floor, developer, and exact location.
+10. **Developer coverage is partial.** The registry snapshot covers 210 of 2,958 unique transaction project names. Unmatched and ambiguous projects remain unlinked.
+11. **Map positions are approximate.** Source files do not contain coordinates. Cached area centroids provide geographic context only and can place multiple projects at the same point.
 
 ## 12. Recommended backend improvements
 
@@ -360,8 +400,10 @@ When the backend is introduced, the comparison should become more defensible by 
 ## 13. Implementation references
 
 - SQLite packaging: `scripts/build_sqlite.py`
+- One-time cached area geocoding: `scripts/geocode_areas.py`
 - Browser-side SQLite loading and field normalization: `src/data/marketData.js`
-- Filtering, cohort construction, opportunity formulas, KPIs, and chart summaries: `src/utils/marketAnalytics.js`
+- Filtering, cohort construction, Opportunity Index, Price Trend Score, KPIs, and chart summaries: `src/utils/marketAnalytics.js`
 - KPI presentation: `src/components/kpis/KpiStrip.jsx`
 - Ranked opportunity columns: `src/components/tables/OpportunityDataGrid.jsx`
+- Trend ranking, evidence chart, and map: `src/components/trends/`
 - View orchestration: `src/App.jsx`

@@ -22,6 +22,7 @@ const columns = [
   { field: 'date', headerName: 'Date', width: 108, renderCell: ({ value }) => formatDate(value) },
   { field: 'area', headerName: 'Area', minWidth: 150, flex: 1 },
   { field: 'project', headerName: 'Project', minWidth: 170, flex: 1.1 },
+  { field: 'developer', headerName: 'Developer', minWidth: 190, flex: 1.1, renderCell: ({ value }) => value || '—' },
   { field: 'propertyType', headerName: 'Type', width: 105 },
   { field: 'subType', headerName: 'Subtype', width: 135 },
   { field: 'rooms', headerName: 'Rooms', width: 90 },
@@ -68,4 +69,3 @@ export default function OpportunityDataGrid({ rows }) {
     </DataTableFrame>
   );
 }
-
