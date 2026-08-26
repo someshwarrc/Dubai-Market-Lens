@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, LinearProgress, Paper, Stack, Typography, useTheme } from '@mui/material';
 import { AttributionControl, LngLatBounds, Map, NavigationControl, Popup, setWorkerUrl } from 'maplibre-gl';
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { formatNumber, formatPercent } from '../../utils/formatters';
 
