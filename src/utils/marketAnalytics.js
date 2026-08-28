@@ -511,6 +511,45 @@ export const buildTrendHistory = (transactions, dimension, key) => {
   }));
 };
 
+export const selectTrendTransactions = (transactions, dimension, key) =>
+  transactions
+    .filter(
+      (row) => eligibleTrendSale(row) && getDimensionValue(row, dimension)?.key === key,
+    )
+    .sort((left, right) => right.date.localeCompare(left.date) || right.value - left.value);
+
+export const buildTransactionValueHistory = (transactions) => {
+  const months = new Map();
+  transactions.forEach((row) => {
+    const values = months.get(row.month) ?? [];
+    values.push(row.value);
+    months.set(row.month, values);
+  });
+
+  return [...months.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([month, values]) => ({
+      month,
+      label: new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-AE', {
+        month: 'short',
+        year: '2-digit',
+      }),
+      medianValue: median(values),
+      sales: values.length,
+    }));
+};
+
+export const summarizeTrendTransactions = (transactions) => {
+  const dates = transactions.map((row) => row.date).filter(Boolean).sort();
+  return {
+    count: transactions.length,
+    medianValue: median(transactions.map((row) => row.value)),
+    medianPsm: median(transactions.map((row) => row.value / row.actualArea)),
+    earliestDate: dates[0] ?? '',
+    latestDate: dates.at(-1) ?? '',
+  };
+};
+
 export const buildTrendMapPoints = (
   transactions,
   areaLocations,

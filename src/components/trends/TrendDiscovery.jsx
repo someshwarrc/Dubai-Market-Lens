@@ -17,10 +17,12 @@ import SectionHeader from '../common/SectionHeader';
 import TrendDataGrid from './TrendDataGrid';
 import TrendHistoryChart from './TrendHistoryChart';
 import TrendMap from './TrendMap';
+import TrendTransactionsDialog from './TrendTransactionsDialog';
 import {
   buildPriceTrends,
   buildTrendHistory,
   buildTrendMapPoints,
+  selectTrendTransactions,
   TREND_DIMENSIONS,
 } from '../../utils/marketAnalytics';
 import { formatDate, formatNumber, formatPercent } from '../../utils/formatters';
@@ -42,6 +44,7 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
   const [dimension, setDimension] = useState('developer');
   const [direction, setDirection] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
+  const [transactionGroup, setTransactionGroup] = useState(null);
   const [isPending, startTransition] = useTransition();
   const trendResult = useMemo(
     () => buildPriceTrends(transactions, opportunities, dimension),
@@ -66,6 +69,23 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
     () => buildTrendMapPoints(transactions, areaLocations, dimension, selected?.key),
     [transactions, areaLocations, dimension, selected?.key],
   );
+  const transactionRows = useMemo(
+    () => transactionGroup
+      ? selectTrendTransactions(transactions, transactionGroup.dimension, transactionGroup.key)
+      : [],
+    [transactions, transactionGroup],
+  );
+  const transactionMapData = useMemo(
+    () => transactionGroup
+      ? buildTrendMapPoints(
+        transactions,
+        areaLocations,
+        transactionGroup.dimension,
+        transactionGroup.key,
+      )
+      : { points: [], areaCount: 0, mappedAreaCount: 0 },
+    [transactions, areaLocations, transactionGroup],
+  );
   const developerCoverage = trendResult.eligibleSales
     ? (trendResult.linkedSales / trendResult.eligibleSales) * 100
     : 0;
@@ -75,7 +95,12 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
     startTransition(() => {
       setDimension(value);
       setSelectedId(null);
+      setTransactionGroup(null);
     });
+  };
+
+  const onShowTransactions = (row) => {
+    setTransactionGroup(row);
   };
 
   return (
@@ -149,6 +174,7 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
               dimensionHeading={TREND_DIMENSIONS[dimension].heading}
               selectedId={effectiveSelectedId}
               onSelect={setSelectedId}
+              onShowTransactions={onShowTransactions}
             />
             <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
@@ -185,6 +211,15 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
           </Box>
         </Box>
       )}
+
+      <TrendTransactionsDialog
+        open={Boolean(transactionGroup)}
+        onClose={() => setTransactionGroup(null)}
+        group={transactionGroup}
+        dimensionHeading={transactionGroup ? TREND_DIMENSIONS[transactionGroup.dimension].heading : ''}
+        transactions={transactionRows}
+        mapData={transactionMapData}
+      />
     </Stack>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import DataTableFrame from '../tables/DataTableFrame';
 import { formatNumber, formatPercent } from '../../utils/formatters';
 
@@ -45,12 +46,38 @@ const ScoreCell = ({ row }) => (
   </Stack>
 );
 
-export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSelect }) {
+export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSelect, onShowTransactions }) {
   const columns = useMemo(() => [
+    {
+      field: 'actions',
+      headerName: '',
+      description: 'Show transactions',
+      width: 52,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      align: 'center',
+      renderCell: ({ row }) => (
+        <Tooltip title="Show transactions" arrow>
+          <IconButton
+            aria-label={`Show transactions for ${row.label}`}
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(row.id);
+              onShowTransactions(row);
+            }}
+            sx={{ width: 44, height: 44 }}
+          >
+            <VisibilityOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
     {
       field: 'label',
       headerName: dimensionHeading,
-      minWidth: 180,
+      minWidth: 160,
       flex: 1.2,
       renderCell: ({ row }) => (
         <Box sx={stackedCellSx}>
@@ -69,7 +96,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       field: 'trendScore',
       headerName: 'Price trend',
       description: 'Signed 0–100 signal combining median AED/m² change, monthly consistency, sales volume, and sample confidence.',
-      width: 126,
+      width: 116,
       type: 'number',
       renderCell: ({ row }) => <ScoreCell row={row} />,
     },
@@ -77,7 +104,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       field: 'recentMedianPsm',
       headerName: 'Recent AED/m²',
       description: 'Median recorded sale price per square metre in the latest 90-day period.',
-      width: 134,
+      width: 126,
       type: 'number',
       renderCell: ({ value }) => formatNumber(value),
     },
@@ -85,14 +112,14 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       field: 'priorMedianPsm',
       headerName: 'Prior AED/m²',
       description: 'Median recorded sale price per square metre in the preceding 90-day period.',
-      width: 126,
+      width: 118,
       type: 'number',
       renderCell: ({ value }) => formatNumber(value),
     },
     {
       field: 'changePct',
       headerName: 'Change',
-      width: 105,
+      width: 95,
       type: 'number',
       renderCell: ({ row }) => (
         <Typography
@@ -104,12 +131,12 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
         </Typography>
       ),
     },
-    { field: 'recentSales', headerName: 'Sales (90d)', width: 104, type: 'number' },
+    { field: 'recentSales', headerName: 'Sales (90d)', width: 96, type: 'number' },
     {
       field: 'confidence',
       headerName: 'Confidence',
       description: 'High, Medium, or Low reflects sample size and consistency. Limited means fewer than five sales in either period.',
-      width: 112,
+      width: 104,
       renderCell: ({ value }) => (
         <Typography
           color={value === 'Limited' ? 'text.disabled' : 'text.primary'}
@@ -124,7 +151,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       field: 'opportunityIndex',
       headerName: 'Opportunity index',
       description: 'Median of the existing positive transaction-level Opportunity Index scores in this group. It remains independent from the Price Trend Score.',
-      width: 135,
+      width: 125,
       type: 'number',
       renderCell: ({ row }) => (
         <Box sx={{ ...stackedCellSx, alignItems: 'flex-end', width: '100%' }}>
@@ -137,7 +164,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
         </Box>
       ),
     },
-  ], [dimensionHeading, selectedId]);
+  ], [dimensionHeading, onSelect, onShowTransactions, selectedId]);
 
   return (
     <DataTableFrame height={590}>

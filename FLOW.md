@@ -365,7 +365,11 @@ The result is signed from `-100` to `100`: positive is rising, negative is falli
 
 The Opportunity Index column in the trend table is the median of existing positive transaction-level Opportunity Index scores within that group. It is supporting context, not an input to the Price Trend Score.
 
-### 10.6 Approximate area map
+### 10.6 Trend transaction evidence
+
+The eye action on each trend row opens the eligible single-asset sales for that exact area, developer, project, or property-type group under the current dashboard filters. The dialog presents overall medians, a monthly median recorded-value line, the approximate area map, and a simplified paginated transaction table. It does not broaden the trend eligibility rule or mix valuation records into the transaction evidence.
+
+### 10.7 Approximate area map
 
 Area names are geocoded once during data preparation, cached locally, and packaged into the SQLite `area_locations` table. The browser never sends geocoding requests. Map bubbles represent approximate area centroids; their size reflects recent sales volume and their color reflects trend direction. They must not be interpreted as exact project, building, or unit coordinates.
 

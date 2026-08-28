@@ -55,7 +55,7 @@ const createPopupContent = (properties) => {
   return container;
 };
 
-export default function TrendMap({ mapData, selectedLabel }) {
+export default function TrendMap({ mapData, selectedLabel, height = 390 }) {
   const theme = useTheme();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -172,7 +172,7 @@ export default function TrendMap({ mapData, selectedLabel }) {
           {formatNumber(mapData?.mappedAreaCount ?? 0)} of {formatNumber(mapData?.areaCount ?? 0)} areas mapped
         </Typography>
       </Stack>
-      <Box sx={{ position: 'relative', height: 390, bgcolor: 'background.default', borderTop: 1, borderColor: 'divider' }}>
+      <Box sx={{ position: 'relative', height, bgcolor: 'background.default', borderTop: 1, borderColor: 'divider' }}>
         <Box sx={{ position: 'absolute', inset: 0 }}>
           <Box
             ref={containerRef}
