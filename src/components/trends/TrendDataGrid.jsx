@@ -11,15 +11,26 @@ const directionColor = {
   Limited: 'text.disabled',
 };
 
+const stackedCellSx = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  height: '100%',
+  minWidth: 0,
+  py: 0.5,
+  lineHeight: 1.25,
+  boxSizing: 'border-box',
+};
+
 const formatSignedPercent = (value) => {
   if (!Number.isFinite(value)) return '—';
   return `${value > 0 ? '+' : ''}${formatPercent(value)}`;
 };
 
 const ScoreCell = ({ row }) => (
-  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%', minWidth: 0, lineHeight: 1.25 }}>
     <Box sx={{ width: 8, height: 8, borderRadius: '50%', flex: '0 0 auto', bgcolor: directionColor[row.direction] }} />
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ ...stackedCellSx, py: 0 }}>
       <Typography
         fontWeight={650}
         color={directionColor[row.direction]}
@@ -27,7 +38,9 @@ const ScoreCell = ({ row }) => (
       >
         {Number.isFinite(row.trendScore) ? Math.round(row.trendScore) : '—'}
       </Typography>
-      <Typography variant="caption" color="text.secondary">{row.direction}</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
+        {row.direction}
+      </Typography>
     </Box>
   </Stack>
 );
@@ -37,13 +50,17 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
     {
       field: 'label',
       headerName: dimensionHeading,
-      minWidth: 190,
+      minWidth: 180,
       flex: 1.2,
       renderCell: ({ row }) => (
-        <Box sx={{ minWidth: 0, py: 0.75 }}>
-          <Typography fontWeight={row.id === selectedId ? 650 : 500} noWrap>{row.label}</Typography>
+        <Box sx={stackedCellSx}>
+          <Typography fontWeight={row.id === selectedId ? 650 : 500} noWrap sx={{ lineHeight: 1.35 }}>
+            {row.label}
+          </Typography>
           {dimensionHeading !== 'Area' && row.primaryArea && (
-            <Typography variant="caption" color="text.secondary" noWrap>{row.primaryArea}</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.35 }}>
+              {row.primaryArea}
+            </Typography>
           )}
         </Box>
       ),
@@ -60,7 +77,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       field: 'recentMedianPsm',
       headerName: 'Recent AED/m²',
       description: 'Median recorded sale price per square metre in the latest 90-day period.',
-      width: 140,
+      width: 134,
       type: 'number',
       renderCell: ({ value }) => formatNumber(value),
     },
@@ -68,7 +85,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       field: 'priorMedianPsm',
       headerName: 'Prior AED/m²',
       description: 'Median recorded sale price per square metre in the preceding 90-day period.',
-      width: 132,
+      width: 126,
       type: 'number',
       renderCell: ({ value }) => formatNumber(value),
     },
@@ -81,20 +98,26 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
         <Typography
           fontWeight={650}
           color={row.direction === 'Rising' ? 'success.main' : row.direction === 'Falling' ? 'secondary.main' : 'text.secondary'}
-          sx={{ fontVariantNumeric: 'tabular-nums' }}
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '100%', fontVariantNumeric: 'tabular-nums' }}
         >
           {formatSignedPercent(row.changePct)}
         </Typography>
       ),
     },
-    { field: 'recentSales', headerName: 'Sales (90d)', width: 108, type: 'number' },
+    { field: 'recentSales', headerName: 'Sales (90d)', width: 104, type: 'number' },
     {
       field: 'confidence',
       headerName: 'Confidence',
       description: 'High, Medium, or Low reflects sample size and consistency. Limited means fewer than five sales in either period.',
       width: 112,
       renderCell: ({ value }) => (
-        <Typography color={value === 'Limited' ? 'text.disabled' : 'text.primary'} fontWeight={500}>{value}</Typography>
+        <Typography
+          color={value === 'Limited' ? 'text.disabled' : 'text.primary'}
+          fontWeight={500}
+          sx={{ display: 'flex', alignItems: 'center', height: '100%' }}
+        >
+          {value}
+        </Typography>
       ),
     },
     {
@@ -104,11 +127,11 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       width: 135,
       type: 'number',
       renderCell: ({ row }) => (
-        <Box sx={{ py: 0.75 }}>
-          <Typography fontWeight={650} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+        <Box sx={{ ...stackedCellSx, alignItems: 'flex-end', width: '100%' }}>
+          <Typography fontWeight={650} sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.35 }}>
             {Number.isFinite(row.opportunityIndex) ? Math.round(row.opportunityIndex) : '—'}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.35 }}>
             {row.opportunityMatches ? `${formatNumber(row.opportunityMatches)} matched` : 'No positive gaps'}
           </Typography>
         </Box>
