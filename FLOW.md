@@ -15,6 +15,10 @@ The dashboard therefore does **not** claim that a particular valuation record be
 
 The resulting valuation gap is an investigative signal, not an appraisal and not proof that a sale and valuation refer to the same property.
 
+### Display units
+
+The top-bar selector defaults to **AED/sq.ft**, with **AED/sq.m** available, and remembers the preference in this browser. Source areas and all analytics remain in square metres. At the display boundary, prices per square metre are multiplied by **0.09290304** to obtain prices per square foot; areas in square metres are divided by the same factor. KPIs, charts, table numeric values and export headers use the selected unit. Area-filter input is converted back to square metres, so switching units preserves the matching records, trend percentages, valuation gaps and scores. Total AED amounts do not change.
+
 ## 2. Dataset relationship
 
 ### 2.1 Columns that can be mapped conceptually
@@ -52,7 +56,12 @@ This exact-name rule links 210 transaction project names in the current snapshot
 
 ```mermaid
 flowchart TD
-    DB["Compressed SQLite database"] --> TX["Transaction table"]
+    API["Azure market data API"] --> TX["Current Azure SQL observations"]
+    DLD["Daily DLD CSV export"] --> WORKER["Azure Functions importer"]
+    WORKER --> NEON["Azure SQL observation history"]
+    NEON --> API
+    DB["Compressed SQLite reference database"] --> TXFALLBACK["Bundled transaction fallback"]
+    TXFALLBACK -. "API unavailable" .-> TX
     DB --> VAL["Valuation table"]
     DB --> PRJ["Project registry table"]
     DB --> LOC["Cached area locations"]
@@ -83,6 +92,12 @@ flowchart TD
     LOC --> MAP["Approximate area trend map"]
     TRENDS --> MAP
 ```
+
+### Transaction refresh and failure behavior
+
+The scheduled importer makes one export request per day. It validates the exact CSV header, byte and row ceilings, timestamps, and numeric fields before opening the ingestion transaction. PostgreSQL advisory locking prevents concurrent runs. Within a successful database transaction, previously current observations for the returned transaction numbers are retired and the downloaded observations are upserted. A failed download, contract check, or database transaction records a failed run and leaves the prior current dataset available.
+
+The portal uses `VITE_MARKET_API_URL` when present. It follows opaque API cursors until the selected date window is loaded, then applies the existing browser analytics. A successful response is cached in IndexedDB. If the configured API cannot be reached, the last API snapshot is used first; the current packaged transaction snapshot remains the rollout fallback when no API cache exists. The portal displays a freshness warning in either case. Valuations, project registry data, and cached area locations remain in the static SQLite reference package.
 
 ## 4. Normalization
 

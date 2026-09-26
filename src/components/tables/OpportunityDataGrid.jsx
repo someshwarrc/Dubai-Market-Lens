@@ -1,3 +1,4 @@
+import { useMeasurementColumns } from '../../hooks/useMeasurementUnit';
 import { Chip, Stack, Typography } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import DataTableFrame from './DataTableFrame';
@@ -50,11 +51,12 @@ const columns = [
 ];
 
 export default function OpportunityDataGrid({ rows }) {
+  const displayColumns = useMeasurementColumns(columns);
   return (
     <DataTableFrame height={640}>
       <DataGrid
         rows={rows}
-        columns={columns}
+        columns={displayColumns}
         rowHeight={58}
         disableRowSelectionOnClick
         pageSizeOptions={[25, 50, 100]}

@@ -3,6 +3,7 @@ dist/
 __pycache__/
 .sites-deploy/
 .vscode/
+.azure/
 skill-observations/
 source-data/
 *.tgz
@@ -10,3 +11,5 @@ source-data/
 .env
 .env.*
 !.env.example
+local.settings.json
+infra/main.json

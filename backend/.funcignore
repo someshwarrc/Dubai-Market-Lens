@@ -1,0 +1,8 @@
+.git*
+.vscode
+local.settings.*
+test
+scripts
+migrations
+coverage
+node_modules

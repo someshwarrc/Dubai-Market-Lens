@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_SQL_SERVER": "<server>.database.windows.net",
+    "AZURE_SQL_DATABASE": "<database>",
+    "AZURE_SQL_MANAGED_IDENTITY_CLIENT_ID": "<managed identity client id>",
+    "DLD_SYNC_SCHEDULE": "0 15 2 * * 1,4",
+    "DLD_SYNC_OVERLAP_DAYS": "3",
+    "MARKET_API_ALLOWED_ORIGIN": "http://localhost:5173"
+  }
+}

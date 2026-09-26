@@ -1,3 +1,4 @@
+import { useMeasurementUnit } from '../../hooks/useMeasurementUnit';
 import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
@@ -12,6 +13,7 @@ const Metric = ({ label, value, note, last }) => (
 );
 
 export default function KpiStrip({ summary }) {
+  const { areaLabel, priceLabel, priceFromSqm } = useMeasurementUnit();
   return (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1.35fr repeat(4, 1fr)' } }}>
@@ -30,12 +32,12 @@ export default function KpiStrip({ summary }) {
         <Metric label="Median discount" value={formatPercent(summary.medianDiscount)} note="shortlisted deals" />
         <Metric label="Valuation coverage" value={formatPercent(summary.valuationCoverage, 0)} note="eligible sales matched" />
         <Metric label="Recorded deal value" value={formatAed(summary.totalValue)} note={`${formatNumber(summary.dealCount)} unique deals`} />
-        <Metric label="Median valuation" value={`${formatAed(summary.medianValuationPsm, false)}/m²`} note={`${formatNumber(summary.valuationCount)} valuation records`} last />
+        <Metric label="Median valuation" value={`${formatAed(priceFromSqm(summary.medianValuationPsm), false)}/${areaLabel}`} note={`${formatNumber(summary.valuationCount)} valuation records`} last />
       </Box>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', px: 2.5, py: 1.25, bgcolor: 'background.default', borderTop: 1, borderColor: 'divider' }}>
         <VerifiedRoundedIcon color="success" sx={{ fontSize: 18 }} />
         <Typography variant="caption" color="text.secondary">
-          Benchmarks use median valuation AED/m² and expose their cohort size. Signals are investigative—not formal appraisals.
+          Benchmarks use median valuation {priceLabel} and expose their cohort size. Signals are investigative—not formal appraisals.
         </Typography>
       </Stack>
     </Paper>

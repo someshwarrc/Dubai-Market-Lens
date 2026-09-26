@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import { useMeasurementUnit } from '../../hooks/useMeasurementUnit';
 import { Box, Paper, Typography, useTheme } from '@mui/material';
 import {
   CartesianGrid,
@@ -24,11 +26,16 @@ const combineHistory = (selectedHistory, marketHistory) => {
 
 export default function TrendHistoryChart({ selectedLabel, selectedHistory, marketHistory }) {
   const theme = useTheme();
-  const data = combineHistory(selectedHistory, marketHistory);
+  const { areaLabel, priceLabel, priceFromSqm } = useMeasurementUnit();
+  const data = useMemo(() => combineHistory(selectedHistory, marketHistory).map((row) => ({
+    ...row,
+    marketPsm: priceFromSqm(row.marketPsm),
+    selectedPsm: priceFromSqm(row.selectedPsm),
+  })), [selectedHistory, marketHistory, priceFromSqm]);
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
-      <Typography variant="h3">Monthly median AED/m²</Typography>
+      <Typography variant="h3">Monthly median {priceLabel}</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
         {selectedLabel ? `${selectedLabel} compared with the filtered market.` : 'Select a ranked signal to inspect its history.'}
       </Typography>
@@ -41,7 +48,7 @@ export default function TrendHistoryChart({ selectedLabel, selectedHistory, mark
               <YAxis stroke={theme.palette.text.secondary} tickLine={false} axisLine={false} width={70} tickFormatter={(value) => formatAed(value)} />
               <Tooltip
                 contentStyle={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8 }}
-                formatter={(value, name) => [formatAed(value, false), name]}
+                formatter={(value, name) => [`${formatAed(value, false)}/${areaLabel}`, name]}
               />
               <Legend iconType="circle" />
               <Line type="monotone" dataKey="marketPsm" name="Filtered market" stroke={theme.palette.text.secondary} strokeDasharray="5 5" strokeWidth={2} dot={false} connectNulls />

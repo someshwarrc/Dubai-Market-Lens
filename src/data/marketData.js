@@ -1,6 +1,7 @@
 import initSqlJs from 'sql.js';
 import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { titleCase } from '../utils/formatters';
+import { loadApiMarketData } from './marketApi';
 
 const DATABASE_URL = '/dubai-market.sqlite.gz?v=2026-08-26';
 const SQLITE_HEADER = 'SQLite format 3\u0000';
@@ -79,6 +80,43 @@ const normalizeTransaction = (row, index) => {
   };
 };
 
+const normalizeApiTransaction = (row, index) => {
+  const date = row.date?.slice(0, 10) ?? '';
+  return {
+    ...row,
+    id: row.id || `api-tx-${index}`,
+    transactionNumber: row.transactionNumber || `Unknown-${index}`,
+    date,
+    month: date.slice(0, 7),
+    group: row.group || 'Unknown',
+    procedure: row.procedure || 'Unknown',
+    planStatus: row.planStatus || 'Unknown',
+    tenure: row.tenure || 'Unknown',
+    usage: row.usage || 'Unknown',
+    area: titleCase(row.area || 'Unknown'),
+    areaKey: normalizeKey(row.area),
+    propertyType: row.propertyType || 'Unknown',
+    propertyTypeKey: normalizeKey(row.propertyType),
+    subType: row.subType || 'Unspecified',
+    subTypeKey: normalizeKey(row.subType),
+    value: toNumber(row.value),
+    procedureArea: toNumber(row.procedureArea),
+    actualArea: toNumber(row.actualArea),
+    rooms: row.rooms || 'Unspecified',
+    parking: toNumber(row.parking),
+    nearestMetro: row.nearestMetro || 'Unspecified',
+    nearestMall: row.nearestMall || 'Unspecified',
+    nearestLandmark: row.nearestLandmark || 'Unspecified',
+    buyerCount: toNumber(row.buyerCount),
+    sellerCount: toNumber(row.sellerCount),
+    masterProject: row.masterProject || 'Unspecified',
+    masterProjectKey: normalizeKey(row.masterProject),
+    project: row.project || 'Unspecified',
+    projectKey: normalizeKey(row.project),
+    assetCount: Math.max(1, toNumber(row.assetCount)),
+  };
+};
+
 const normalizeProject = (row, index) => ({
   id: `project-${row.PROJECT_NUMBER || index}`,
   projectNumber: row.PROJECT_NUMBER || '',
@@ -101,6 +139,16 @@ const normalizeProject = (row, index) => ({
   unitCount: toNumber(row.CNT_UNIT),
   masterProject: row.MASTER_PROJECT_EN || 'Unspecified',
   masterProjectKey: normalizeKey(row.MASTER_PROJECT_EN),
+});
+
+const normalizeApiProject = (row, index) => ({
+  id: `project-${row.projectNumber || index}`,
+  projectNumber: row.projectNumber || '', project: row.project || 'Unspecified', projectKey: normalizeKey(row.project),
+  developerNumber: '', developer: titleCase(row.developer || 'Unspecified'), developerKey: normalizeKey(row.developer),
+  startDate: '', endDate: '', projectType: 'Unspecified', projectValue: 0, projectStatus: row.projectStatus || 'Unknown',
+  percentCompleted: toNumber(row.percentCompleted), completionDate: '', description: '',
+  registeredArea: titleCase(row.registeredArea || 'Unspecified'), registeredAreaKey: normalizeKey(row.registeredArea),
+  zone: 'Unspecified', unitCount: 0, masterProject: 'Unspecified', masterProjectKey: '',
 });
 
 const normalizeAreaLocation = (row) => ({
@@ -141,6 +189,15 @@ const normalizeValuation = (row, index) => {
   };
 };
 
+const normalizeApiValuation = (row, index) => {
+  const date = row.date?.slice(0, 10) ?? ''; const actualArea = toNumber(row.actualArea); const actualWorth = toNumber(row.actualWorth);
+  return { ...row, id: row.id || `api-val-${index}`, procedureNumber: row.procedureNumber || `Unknown-${index}`,
+    procedureYear: row.procedureYear || date.slice(0, 4), date, month: date.slice(0, 7), area: titleCase(row.area || 'Unknown'),
+    areaKey: normalizeKey(row.area), propertyType: row.propertyType || 'Unknown', propertyTypeKey: normalizeKey(row.propertyType),
+    subType: row.subType || 'Unspecified', subTypeKey: normalizeKey(row.subType), totalValue: toNumber(row.totalValue), actualWorth,
+    procedureArea: toNumber(row.procedureArea), actualArea, pricePerSqm: actualArea > 0 ? actualWorth / actualArea : 0 };
+};
+
 const attachTransactionMultiplicity = (transactions) => {
   const counts = new Map();
   transactions.forEach((row) => counts.set(row.transactionNumber, (counts.get(row.transactionNumber) ?? 0) + 1));
@@ -176,28 +233,38 @@ const attachProjectMetadata = (transactions, projects) => {
 };
 
 export const loadMarketData = async () => {
-  const [SQL, databaseBytes] = await Promise.all([
+  const [SQL, databaseBytes, apiResult] = await Promise.all([
     initSqlJs({ locateFile: () => sqlWasmUrl }),
     downloadDatabase(),
+    loadApiMarketData().catch((error) => ({ error })),
   ]);
 
   const database = new SQL.Database(databaseBytes);
-  const transactionRows = queryRows(database, 'SELECT * FROM transactions');
-  const valuationRows = queryRows(database, 'SELECT * FROM valuations');
-  const projectRows = queryRows(database, 'SELECT * FROM projects');
+  const shouldUseApi = apiResult && !apiResult.error;
+  const transactionRows = shouldUseApi ? [] : queryRows(database, 'SELECT * FROM transactions');
+  const valuationRows = shouldUseApi ? [] : queryRows(database, 'SELECT * FROM valuations');
+  const projectRows = shouldUseApi ? [] : queryRows(database, 'SELECT * FROM projects');
   const areaLocationRows = queryRows(database, 'SELECT * FROM area_locations');
   database.close();
 
-  const projects = projectRows.map(normalizeProject);
+  const projects = shouldUseApi ? apiResult.projects.map(normalizeApiProject) : projectRows.map(normalizeProject);
   const transactions = attachProjectMetadata(
-    attachTransactionMultiplicity(transactionRows.map(normalizeTransaction)),
+    shouldUseApi
+      ? apiResult.transactions.map(normalizeApiTransaction)
+      : attachTransactionMultiplicity(transactionRows.map(normalizeTransaction)),
     projects,
   );
 
   return {
     transactions,
-    valuations: valuationRows.map(normalizeValuation),
+    valuations: shouldUseApi ? apiResult.valuations.map(normalizeApiValuation) : valuationRows.map(normalizeValuation),
     projects,
     areaLocations: areaLocationRows.map(normalizeAreaLocation),
+    transactionSource: {
+      type: shouldUseApi ? (apiResult.fromCache ? 'api-cache' : 'api') : 'bundled',
+      lastSync: shouldUseApi ? apiResult.syncStatus?.lastSync ?? null : null,
+      fallbackReason: apiResult?.cacheError?.message ?? apiResult?.error?.message ?? null,
+      cachedAt: shouldUseApi ? apiResult.savedAt ?? null : null,
+    },
   };
 };

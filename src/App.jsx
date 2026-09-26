@@ -1,3 +1,4 @@
+import { MeasurementUnitProvider, useMeasurementUnit } from './hooks/useMeasurementUnit';
 import { lazy, Suspense, useDeferredValue, useMemo, useState } from 'react';
 import {
   Alert,
@@ -49,7 +50,7 @@ const viewMeta = {
   },
   overview: {
     title: 'Dubai market overview',
-    description: 'Track transaction activity, valuation levels, and price-per-square-metre movement across the filtered market.',
+    description: 'Track transaction activity, valuation levels, and unit-price movement across the filtered market.',
   },
   transactions: {
     title: 'Transaction explorer',
@@ -57,7 +58,7 @@ const viewMeta = {
   },
   valuations: {
     title: 'Valuation explorer',
-    description: 'Review the valuation evidence used to build local and Dubai-wide price-per-square-metre benchmarks.',
+    description: 'Review the valuation evidence used to build local and Dubai-wide unit-price benchmarks.',
   },
 };
 
@@ -87,8 +88,10 @@ function LoadingDashboard() {
   );
 }
 
-function PageIntro({ activeView, transactionCount, valuationCount }) {
+function PageIntro({ activeView, transactions, valuationCount }) {
   const meta = viewMeta[activeView];
+  const dates = transactions.map((row) => row.date).filter(Boolean).sort();
+  const dateLabel = dates.length ? `${dates[0]} – ${dates.at(-1)}` : 'No transaction dates';
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { md: 'flex-end' } }}>
       <Box>
@@ -96,8 +99,8 @@ function PageIntro({ activeView, transactionCount, valuationCount }) {
         <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 780 }}>{meta.description}</Typography>
       </Box>
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        <Chip icon={<CalendarMonthRoundedIcon />} label="Jan–Aug 2026" variant="outlined" />
-        <Chip icon={<ApartmentRoundedIcon />} label={`${formatNumber(transactionCount)} transactions`} variant="outlined" />
+        <Chip icon={<CalendarMonthRoundedIcon />} label={dateLabel} variant="outlined" />
+        <Chip icon={<ApartmentRoundedIcon />} label={`${formatNumber(transactions.length)} transactions`} variant="outlined" />
         <Chip icon={<DataUsageRoundedIcon />} label={`${formatNumber(valuationCount)} valuations`} variant="outlined" />
       </Stack>
     </Stack>
@@ -105,6 +108,7 @@ function PageIntro({ activeView, transactionCount, valuationCount }) {
 }
 
 function OpportunityView({ summary, opportunities, areaOpportunities, monthlyTrend, transactions, areaLocations }) {
+  const { priceLabel } = useMeasurementUnit();
   const positiveRows = useMemo(() => opportunities.filter((row) => row.discountPct > 0), [opportunities]);
   return (
     <Stack spacing={6}>
@@ -115,7 +119,7 @@ function OpportunityView({ summary, opportunities, areaOpportunities, monthlyTre
       <Stack component="section" spacing={4} sx={{ pt: 5, borderTop: 1, borderColor: 'divider' }}>
         <SectionHeader
           title="Valuation opportunity index"
-          description="The original transaction-level index remains unchanged. It compares recorded sale AED/m² with valuation cohorts and exposes the benchmark basis, sample size, and confidence."
+          description={`The original transaction-level index remains unchanged. It compares recorded sale ${priceLabel} with valuation cohorts and exposes the benchmark basis, sample size, and confidence.`}
         />
         <KpiStrip summary={summary} />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.12fr) minmax(420px, .88fr)' }, gap: 3, alignItems: 'start' }}>
@@ -221,7 +225,15 @@ function AppContent() {
       >
         <Box sx={{ maxWidth: 1640, mx: 'auto', px: { xs: 2, md: 3.5, xl: 4 }, py: { xs: 3, md: 4 } }}>
           <Stack spacing={4}>
-            <PageIntro activeView={activeView} transactionCount={analytics.transactions.length} valuationCount={analytics.valuations.length} />
+            {data.transactionSource?.fallbackReason && (
+              <Alert severity="warning" variant="outlined">
+                Live transaction updates are temporarily unavailable. {data.transactionSource.type === 'api-cache'
+                  ? `Showing the API snapshot saved ${data.transactionSource.cachedAt || 'in this browser'}. `
+                  : 'Showing the bundled rollout dataset. '}
+                {data.transactionSource.fallbackReason}
+              </Alert>
+            )}
+            <PageIntro activeView={activeView} transactions={analytics.transactions} valuationCount={analytics.valuations.length} />
             {activeView === 'opportunities' && (
               <OpportunityView
                 summary={analytics.summary}
@@ -260,5 +272,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return <AppContent />;
+  return <MeasurementUnitProvider><AppContent /></MeasurementUnitProvider>;
 }

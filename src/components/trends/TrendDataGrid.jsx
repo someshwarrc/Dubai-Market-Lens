@@ -1,3 +1,4 @@
+import { useMeasurementColumns } from '../../hooks/useMeasurementUnit';
 import { useMemo } from 'react';
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
@@ -166,11 +167,13 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
     },
   ], [dimensionHeading, onSelect, onShowTransactions, selectedId]);
 
+  const displayColumns = useMeasurementColumns(columns);
+
   return (
     <DataTableFrame height={590}>
       <DataGrid
         rows={rows}
-        columns={columns}
+        columns={displayColumns}
         rowHeight={58}
         disableRowSelectionOnClick
         onRowClick={({ row }) => onSelect(row.id)}

@@ -1,3 +1,4 @@
+import { useMeasurementColumns } from '../../hooks/useMeasurementUnit';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import DataTableFrame from './DataTableFrame';
 import { formatAed, formatDate, formatNumber } from '../../utils/formatters';
@@ -17,11 +18,12 @@ const columns = [
 ];
 
 export default function ValuationDataGrid({ rows }) {
+  const displayColumns = useMeasurementColumns(columns);
   return (
     <DataTableFrame height="calc(100vh - 240px)">
       <DataGrid
         rows={rows}
-        columns={columns}
+        columns={displayColumns}
         disableRowSelectionOnClick
         pageSizeOptions={[25, 50, 100]}
         initialState={{ pagination: { paginationModel: { pageSize: 50, page: 0 } }, sorting: { sortModel: [{ field: 'date', sort: 'desc' }] } }}

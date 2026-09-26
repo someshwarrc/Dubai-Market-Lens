@@ -1,3 +1,4 @@
+import { useMeasurementColumns, useMeasurementUnit } from '../../hooks/useMeasurementUnit';
 import { useMemo } from 'react';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import {
@@ -95,6 +96,8 @@ export default function TrendTransactionsDialog({
   transactions,
   mapData,
 }) {
+  const { areaLabel, priceFromSqm } = useMeasurementUnit();
+  const displayColumns = useMeasurementColumns(columns);
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
   const chartData = useMemo(() => buildTransactionValueHistory(transactions), [transactions]);
@@ -145,7 +148,7 @@ export default function TrendTransactionsDialog({
           >
             <SummaryMetric label="Eligible sales" value={formatNumber(summary.count)} />
             <SummaryMetric label="Median recorded value" value={formatAed(summary.medianValue, false)} />
-            <SummaryMetric label="Median sale price" value={`${formatAed(summary.medianPsm, false)}/m²`} />
+            <SummaryMetric label="Median sale price" value={`${formatAed(priceFromSqm(summary.medianPsm), false)}/${areaLabel}`} />
             <SummaryMetric
               label="Date range"
               value={`${formatDate(summary.earliestDate)}–${formatDate(summary.latestDate)}`}
@@ -174,7 +177,7 @@ export default function TrendTransactionsDialog({
             <Box sx={{ height: 460, minWidth: 0 }}>
               <DataGrid
                 rows={rows}
-                columns={columns}
+                columns={displayColumns}
                 rowHeight={56}
                 disableRowSelectionOnClick
                 pageSizeOptions={[10, 25, 50, 100]}

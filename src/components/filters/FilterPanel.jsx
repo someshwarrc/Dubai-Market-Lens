@@ -1,3 +1,4 @@
+import { useMeasurementUnit } from '../../hooks/useMeasurementUnit';
 import {
   Accordion,
   AccordionDetails,
@@ -53,6 +54,9 @@ const RangeFields = ({ filters, onFieldChange }) => (
 );
 
 export default function FilterPanel({ filters, options, onChange, onReset }) {
+  const { areaLabel, areaFromSqm, areaToSqm } = useMeasurementUnit();
+  const displayArea = (value) => value === '' ? '' : Number(areaFromSqm(Number(value)).toPrecision(12));
+  const onAreaChange = (field, value) => onFieldChange(field, value === '' ? '' : areaToSqm(Number(value)));
   const onFieldChange = (field, value) => onChange({ ...filters, [field]: value });
   const activeCount = Object.entries(filters).reduce((count, [key, value]) => {
     if (key === 'dateFrom' || key === 'dateTo') return count;
@@ -112,18 +116,18 @@ export default function FilterPanel({ filters, options, onChange, onReset }) {
             <MultiFilter label="Property subtypes" options={options.subTypes} value={filters.subTypes} onChange={(value) => onFieldChange('subTypes', value)} />
             <Stack direction="row" spacing={1}>
               <TextField
-                label="Min area (m²)"
+                label={`Min area (${areaLabel})`}
                 type="number"
                 size="small"
-                value={filters.minArea}
-                onChange={(event) => onFieldChange('minArea', event.target.value)}
+                value={displayArea(filters.minArea)}
+                onChange={(event) => onAreaChange('minArea', event.target.value)}
               />
               <TextField
-                label="Max area (m²)"
+                label={`Max area (${areaLabel})`}
                 type="number"
                 size="small"
-                value={filters.maxArea}
-                onChange={(event) => onFieldChange('maxArea', event.target.value)}
+                value={displayArea(filters.maxArea)}
+                onChange={(event) => onAreaChange('maxArea', event.target.value)}
               />
             </Stack>
             <Typography variant="caption" color="text.secondary">Recorded value (AED)</Typography>
