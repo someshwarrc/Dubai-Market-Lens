@@ -11,5 +11,6 @@ source-data/
 .env
 .env.*
 !.env.example
+!.env.production
 local.settings.json
 infra/main.json
