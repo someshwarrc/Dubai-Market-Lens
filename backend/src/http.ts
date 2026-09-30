@@ -4,7 +4,7 @@ import { getRuntimeConfig } from './config.js';
 export const corsHeaders = (): Record<string, string> => ({
   'access-control-allow-origin': getRuntimeConfig().allowedOrigin,
   'access-control-allow-methods': 'GET, POST, OPTIONS',
-  'access-control-allow-headers': 'content-type, x-functions-key',
+  'access-control-allow-headers': 'authorization, content-type, x-functions-key',
   'cache-control': 'no-store',
   'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
   'referrer-policy': 'no-referrer',

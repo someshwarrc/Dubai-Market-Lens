@@ -41,7 +41,7 @@ const matchesDirection = (row, direction) => {
   return row.direction.toLowerCase() === direction;
 };
 
-export default function TrendDiscovery({ transactions, opportunities, areaLocations }) {
+export default function TrendDiscovery({ transactions, areaLocations }) {
   const { priceLabel } = useMeasurementUnit();
   const [dimension, setDimension] = useState('developer');
   const [direction, setDirection] = useState('all');
@@ -49,8 +49,8 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
   const [transactionGroup, setTransactionGroup] = useState(null);
   const [isPending, startTransition] = useTransition();
   const trendResult = useMemo(
-    () => buildPriceTrends(transactions, opportunities, dimension),
-    [transactions, opportunities, dimension],
+    () => buildPriceTrends(transactions, dimension),
+    [transactions, dimension],
   );
   const rows = useMemo(
     () => trendResult.rows.filter((row) => matchesDirection(row, direction)),
@@ -109,7 +109,7 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
     <Stack component="section" spacing={2.5} aria-labelledby="price-trend-heading">
       <SectionHeader
         title="Price trend opportunities"
-        description={`Compare recent and prior median sale ${priceLabel} across areas, developers, projects, and property types. This signal is independent from the valuation-based Opportunity Index.`}
+        description={`Compare recent and prior median sale ${priceLabel} across areas, developers, projects, and property types.`}
         action={trendResult.period && (
           <Typography variant="caption" color="text.secondary">
             {formatDate(trendResult.period.recentStart)}–{formatDate(trendResult.period.recentEnd)} vs {formatDate(trendResult.period.priorStart)}–{formatDate(trendResult.period.priorEnd)}
@@ -189,7 +189,7 @@ export default function TrendDiscovery({ transactions, opportunities, areaLocati
                 <Box sx={{ p: 2.5 }}>
                   <Typography variant="h3">Evidence boundaries</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Developer links use exact, unique project-name matches only. The map uses cached area centroids and never represents an exact building or unit location. The Opportunity Index remains a separate valuation-cohort signal.
+                    Developer links use exact, unique project-name matches only. The map uses cached area centroids and never represents an exact building or unit location.
                   </Typography>
                 </Box>
               </Box>

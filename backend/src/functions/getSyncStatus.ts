@@ -1,18 +1,17 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
-import { getSqlPool } from '../database.js';
+import { withSqlRetry } from '../database.js';
 import { jsonResponse, optionsResponse } from '../http.js';
 
 const handler = async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
   if (request.method === 'OPTIONS') return optionsResponse();
   try {
-    const pool = await getSqlPool();
-    const [runs, counts] = await Promise.all([
+    const [runs, counts] = await withSqlRetry((pool) => Promise.all([
       pool.request().query(`WITH ranked AS (SELECT *, ROW_NUMBER() OVER(PARTITION BY dataset ORDER BY completed_at DESC) AS rn
         FROM market_ingest.sync_runs WHERE status IN ('succeeded','failed')) SELECT * FROM ranked WHERE rn=1`),
       pool.request().query(`SELECT 'transactions' dataset, COUNT_BIG(*) row_count FROM market_ingest.current_transactions
         UNION ALL SELECT 'projects', COUNT_BIG(*) FROM market_ingest.projects
         UNION ALL SELECT 'valuations', COUNT_BIG(*) FROM market_ingest.current_valuations`),
-    ]);
+    ]));
     const countByDataset = Object.fromEntries(counts.recordset.map((row) => [row.dataset, Number(row.row_count)]));
     const present = (row: Record<string, unknown>) => ({ runId: String(row.id), dataset: row.dataset, trigger: row.trigger_type,
       status: row.status, requestedFrom: row.requested_from, requestedTo: row.requested_to, startedAt: row.started_at,

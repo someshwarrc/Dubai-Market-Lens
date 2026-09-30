@@ -45,6 +45,7 @@ resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
     capacity: 1
   }
   properties: {
+    autoPauseDelay: 60
     minCapacity: json('0.5')
     maxSizeBytes: 34359738368
     readScale: 'Disabled'

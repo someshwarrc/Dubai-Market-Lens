@@ -1,13 +1,15 @@
-import { MeasurementUnitProvider, useMeasurementUnit } from './hooks/useMeasurementUnit';
-import { lazy, Suspense, useDeferredValue, useMemo, useState } from 'react';
+import { MeasurementUnitProvider } from './hooks/useMeasurementUnit';
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
   CssBaseline,
   LinearProgress,
   Paper,
+  Snackbar,
   Skeleton,
   Stack,
   ThemeProvider,
@@ -23,10 +25,11 @@ import MonthlyPriceChart from './components/charts/MonthlyPriceChart';
 import AreaOpportunityChart from './components/charts/AreaOpportunityChart';
 import PropertyTypeChart from './components/charts/PropertyTypeChart';
 import ActivityChart from './components/charts/ActivityChart';
-import OpportunityDataGrid from './components/tables/OpportunityDataGrid';
 import TransactionDataGrid from './components/tables/TransactionDataGrid';
 import ValuationDataGrid from './components/tables/ValuationDataGrid';
+import TransactionReviewAccess from './components/auth/TransactionReviewAccess';
 import { useMarketData } from './hooks/useMarketData';
+import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { createAppTheme } from './theme/createAppTheme';
 import {
   buildAreaOpportunities,
@@ -46,7 +49,7 @@ const TrendDiscovery = lazy(() => import('./components/trends/TrendDiscovery'));
 const viewMeta = {
   opportunities: {
     title: 'Opportunity radar',
-    description: 'Compare independent transaction price trends with valuation-backed opportunity signals, then inspect the evidence behind each result.',
+    description: 'Compare transaction price trends across areas, developers, projects, and property types, then inspect the evidence behind each result.',
   },
   overview: {
     title: 'Dubai market overview',
@@ -80,7 +83,7 @@ function LoadingDashboard() {
           </Box>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <CircularProgress size={18} />
-            <Typography variant="body2" color="text.secondary">Loading and indexing 144,000+ market records in your browser…</Typography>
+            <Typography variant="body2" color="text.secondary">Loading and indexing live market data in your browser…</Typography>
           </Stack>
         </Stack>
       </Box>
@@ -107,41 +110,12 @@ function PageIntro({ activeView, transactions, valuationCount }) {
   );
 }
 
-function OpportunityView({ summary, opportunities, areaOpportunities, monthlyTrend, transactions, areaLocations }) {
-  const { priceLabel } = useMeasurementUnit();
-  const positiveRows = useMemo(() => opportunities.filter((row) => row.discountPct > 0), [opportunities]);
+function OpportunityView({ transactions, areaLocations }) {
   return (
-    <Stack spacing={6}>
+    <Stack spacing={4}>
       <Suspense fallback={<Skeleton variant="rounded" height={720} />}>
-        <TrendDiscovery transactions={transactions} opportunities={opportunities} areaLocations={areaLocations} />
+        <TrendDiscovery transactions={transactions} areaLocations={areaLocations} />
       </Suspense>
-
-      <Stack component="section" spacing={4} sx={{ pt: 5, borderTop: 1, borderColor: 'divider' }}>
-        <SectionHeader
-          title="Valuation opportunity index"
-          description={`The original transaction-level index remains unchanged. It compares recorded sale ${priceLabel} with valuation cohorts and exposes the benchmark basis, sample size, and confidence.`}
-        />
-        <KpiStrip summary={summary} />
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.12fr) minmax(420px, .88fr)' }, gap: 3, alignItems: 'start' }}>
-          <AreaOpportunityChart data={areaOpportunities} />
-          <MonthlyPriceChart data={monthlyTrend} />
-        </Box>
-        <Stack spacing={2}>
-          <SectionHeader
-            title="Ranked valuation opportunities"
-            description={`${formatNumber(positiveRows.length)} single-asset sales have a matched valuation benchmark and a positive price gap. Signal strength combines the gap, cohort quality, and cohort size.`}
-            action={<Chip label="Sorted by signal strength" color="success" variant="outlined" />}
-          />
-          {positiveRows.length ? (
-            <OpportunityDataGrid rows={positiveRows} />
-          ) : (
-            <Alert severity="info">No positively discounted, valuation-matched sales meet the current filters. Broaden the market segment or date range.</Alert>
-          )}
-        </Stack>
-        <Alert severity="warning" variant="outlined">
-          Opportunity gaps are indicative comparisons, not professional appraisals. Multi-asset transaction bundles, nominal valuations below AED 1,000, and records without usable area are excluded from opportunity scoring.
-        </Alert>
-      </Stack>
     </Stack>
   );
 }
@@ -164,15 +138,71 @@ function AppContent() {
   const [mode, setMode] = useState(() => localStorage.getItem('market-lens-theme') || 'light');
   const [activeView, setActiveView] = useState('opportunities');
   const [filters, setFilters] = useState(createDefaultFilters);
+  const filtersInitialized = useRef(false);
   const deferredFilters = useDeferredValue(filters);
-  const { data, loading, error } = useMarketData();
+  const { data, loading, error, reviewTransaction } = useMarketData();
+  const auth = useSupabaseAuth();
+  const [pendingTransactionNumber, setPendingTransactionNumber] = useState('');
+  const [notice, setNotice] = useState(null);
   const theme = useMemo(() => createAppTheme(mode), [mode]);
+
+  useEffect(() => {
+    if (!data || filtersInitialized.current) return;
+    filtersInitialized.current = true;
+    setFilters(createDefaultFilters(data.transactions));
+  }, [data]);
 
   const toggleMode = () => {
     const next = mode === 'light' ? 'dark' : 'light';
     localStorage.setItem('market-lens-theme', next);
     setMode(next);
   };
+
+  const showError = useCallback((errorValue) => {
+    setNotice({ severity: 'error', message: errorValue?.message || 'The request could not be completed.' });
+  }, []);
+
+  const handleReview = useCallback(async (row, decision) => {
+    setPendingTransactionNumber(row.transactionNumber);
+    try {
+      const result = await reviewTransaction({
+        transactionNumber: row.transactionNumber,
+        decision,
+        accessToken: auth.accessToken,
+      });
+      if (decision === 'disliked') {
+        setNotice({
+          severity: 'success',
+          message: `Transaction ${row.transactionNumber} was hidden from all dashboards.`,
+          undo: {
+            transactionNumber: row.transactionNumber,
+            decision: result.previousDecision || 'neutral',
+            restoreRows: result.removedRows,
+          },
+        });
+      } else {
+        setNotice({ severity: 'success', message: `Transaction ${row.transactionNumber} was marked as trusted.` });
+      }
+    } catch (reviewError) {
+      showError(reviewError);
+    } finally {
+      setPendingTransactionNumber('');
+    }
+  }, [auth.accessToken, reviewTransaction, showError]);
+
+  const undoReview = useCallback(async () => {
+    const undo = notice?.undo;
+    if (!undo) return;
+    setPendingTransactionNumber(undo.transactionNumber);
+    try {
+      await reviewTransaction({ ...undo, accessToken: auth.accessToken });
+      setNotice({ severity: 'success', message: `Transaction ${undo.transactionNumber} was restored.` });
+    } catch (reviewError) {
+      showError(reviewError);
+    } finally {
+      setPendingTransactionNumber('');
+    }
+  }, [auth.accessToken, notice, reviewTransaction, showError]);
 
   const analytics = useMemo(() => {
     if (!data) return null;
@@ -221,7 +251,7 @@ function AppContent() {
         filters={filters}
         options={options}
         onFiltersChange={setFilters}
-        onResetFilters={() => setFilters(createDefaultFilters())}
+        onResetFilters={() => setFilters(createDefaultFilters(data.transactions))}
       >
         <Box sx={{ maxWidth: 1640, mx: 'auto', px: { xs: 2, md: 3.5, xl: 4 }, py: { xs: 3, md: 4 } }}>
           <Stack spacing={4}>
@@ -236,10 +266,6 @@ function AppContent() {
             <PageIntro activeView={activeView} transactions={analytics.transactions} valuationCount={analytics.valuations.length} />
             {activeView === 'opportunities' && (
               <OpportunityView
-                summary={analytics.summary}
-                opportunities={analytics.opportunities}
-                areaOpportunities={analytics.areaOpportunities}
-                monthlyTrend={analytics.monthlyTrend}
                 transactions={analytics.transactions}
                 areaLocations={data.areaLocations}
               />
@@ -255,7 +281,13 @@ function AppContent() {
             {activeView === 'transactions' && (
               <Stack spacing={2}>
                 <SectionHeader title="Filtered transaction records" description={`${formatNumber(analytics.transactions.length)} asset-level records. Repeated transaction numbers indicate multi-asset procedures.`} />
-                <TransactionDataGrid rows={analytics.transactions} />
+                <TransactionReviewAccess auth={auth} onError={showError} />
+                <TransactionDataGrid
+                  rows={analytics.transactions}
+                  canReview={Boolean(auth.user && auth.accessToken)}
+                  pendingTransactionNumber={pendingTransactionNumber}
+                  onReview={handleReview}
+                />
               </Stack>
             )}
             {activeView === 'valuations' && (
@@ -267,6 +299,22 @@ function AppContent() {
           </Stack>
         </Box>
       </AppShell>
+      <Snackbar
+        open={Boolean(notice)}
+        autoHideDuration={notice?.undo ? 10_000 : 6_000}
+        onClose={(_, reason) => reason !== 'clickaway' && setNotice(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={notice?.severity || 'info'}
+          variant="filled"
+          onClose={() => setNotice(null)}
+          action={notice?.undo ? <Button color="inherit" onClick={undoReview}>Undo</Button> : undefined}
+          sx={{ width: '100%' }}
+        >
+          {notice?.message}
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 }

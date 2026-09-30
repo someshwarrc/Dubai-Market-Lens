@@ -24,8 +24,10 @@ const stackedCellSx = {
   boxSizing: 'border-box',
 };
 
+const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
+
 const formatSignedPercent = (value) => {
-  if (!Number.isFinite(value)) return '—';
+  if (!isFiniteNumber(value)) return 'N/A';
   return `${value > 0 ? '+' : ''}${formatPercent(value)}`;
 };
 
@@ -38,7 +40,7 @@ const ScoreCell = ({ row }) => (
         color={directionColor[row.direction]}
         sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}
       >
-        {Number.isFinite(row.trendScore) ? Math.round(row.trendScore) : '—'}
+        {isFiniteNumber(row.trendScore) ? Math.round(row.trendScore) : 'N/A'}
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
         {row.direction}
@@ -107,7 +109,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       description: 'Median recorded sale price per square metre in the latest 90-day period.',
       width: 126,
       type: 'number',
-      renderCell: ({ value }) => formatNumber(value),
+      renderCell: ({ value }) => isFiniteNumber(value) ? formatNumber(value) : 'N/A',
     },
     {
       field: 'priorMedianPsm',
@@ -115,7 +117,7 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
       description: 'Median recorded sale price per square metre in the preceding 90-day period.',
       width: 118,
       type: 'number',
-      renderCell: ({ value }) => formatNumber(value),
+      renderCell: ({ value }) => isFiniteNumber(value) ? formatNumber(value) : 'N/A',
     },
     {
       field: 'changePct',
@@ -146,23 +148,6 @@ export default function TrendDataGrid({ rows, dimensionHeading, selectedId, onSe
         >
           {value}
         </Typography>
-      ),
-    },
-    {
-      field: 'opportunityIndex',
-      headerName: 'Opportunity index',
-      description: 'Median of the existing positive transaction-level Opportunity Index scores in this group. It remains independent from the Price Trend Score.',
-      width: 125,
-      type: 'number',
-      renderCell: ({ row }) => (
-        <Box sx={{ ...stackedCellSx, alignItems: 'flex-end', width: '100%' }}>
-          <Typography fontWeight={650} sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.35 }}>
-            {Number.isFinite(row.opportunityIndex) ? Math.round(row.opportunityIndex) : '—'}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.35 }}>
-            {row.opportunityMatches ? `${formatNumber(row.opportunityMatches)} matched` : 'No positive gaps'}
-          </Typography>
-        </Box>
       ),
     },
   ], [dimensionHeading, onSelect, onShowTransactions, selectedId]);

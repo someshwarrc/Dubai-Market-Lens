@@ -8,6 +8,9 @@
     "AZURE_SQL_MANAGED_IDENTITY_CLIENT_ID": "<managed identity client id>",
     "DLD_SYNC_SCHEDULE": "0 15 2 * * 1,4",
     "DLD_SYNC_OVERLAP_DAYS": "3",
-    "MARKET_API_ALLOWED_ORIGIN": "http://localhost:5173"
+    "MARKET_API_ALLOWED_ORIGIN": "http://localhost:5173",
+    "SUPABASE_URL": "https://your-project-ref.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "<publishable key>",
+    "MARKET_REVIEWER_EMAILS": "reviewer@example.com"
   }
 }

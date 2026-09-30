@@ -16,6 +16,7 @@
     "@mui/material": "^9.3.1",
     "@mui/x-data-grid": "^9.11.0",
     "@openai/sites-vite-plugin": "^0.2.0",
+    "@supabase/supabase-js": "2.117.2",
     "@vitejs/plugin-react": "^6.0.5",
     "maplibre-gl": "^6.6.0",
     "react": "^19.2.8",

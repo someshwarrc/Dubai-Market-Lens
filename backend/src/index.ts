@@ -5,3 +5,4 @@ import './functions/getSyncStatus.js';
 import './functions/runTransactionSync.js';
 import './functions/scheduledTransactionSync.js';
 import './functions/health.js';
+import './functions/reviewTransaction.js';

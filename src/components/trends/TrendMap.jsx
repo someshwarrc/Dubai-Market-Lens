@@ -43,7 +43,9 @@ const createPopupContent = (properties) => {
   const title = document.createElement('strong');
   title.textContent = properties.area;
   const summary = document.createElement('div');
-  const change = Number(properties.changePct);
+  const change = properties.changePct === null || properties.changePct === ''
+    ? Number.NaN
+    : Number(properties.changePct);
   summary.textContent = `${properties.direction} · ${Number.isFinite(change) ? formatPercent(change) : 'No comparable change'}`;
   const evidence = document.createElement('div');
   evidence.textContent = `${formatNumber(Number(properties.sales))} recent sales · ${properties.confidence} confidence`;

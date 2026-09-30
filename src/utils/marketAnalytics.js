@@ -9,9 +9,25 @@ const includesAny = (selected, value) => !selected.length || selected.includes(v
 const inRange = (value, minimum, maximum) =>
   (!minimum || value >= Number(minimum)) && (!maximum || value <= Number(maximum));
 
-export const createDefaultFilters = () => ({
-  dateFrom: '2026-01-01',
-  dateTo: '2026-08-17',
+export const getTransactionDateRange = (transactions = []) => transactions.reduce(
+  (range, row) => {
+    if (!row.date) return range;
+    return {
+      dateFrom: !range.dateFrom || row.date < range.dateFrom ? row.date : range.dateFrom,
+      dateTo: !range.dateTo || row.date > range.dateTo ? row.date : range.dateTo,
+    };
+  },
+  { dateFrom: '', dateTo: '' },
+);
+
+export const localIsoDate = (date = new Date()) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+export const createDefaultFilters = (transactions = [], today = localIsoDate()) => ({
+  dateFrom: getTransactionDateRange(transactions).dateFrom,
+  dateTo: today,
   areas: [],
   propertyTypes: [],
   subTypes: [],
@@ -388,17 +404,20 @@ const calculateTrendMetrics = (rows, anchorMilliseconds, windowDays = 90) => {
   });
   const recentRows = periodRows.filter((row) => asUtcDate(row.date) >= recentStart);
   const priorRows = periodRows.filter((row) => asUtcDate(row.date) <= priorEnd);
-  const recentMedianPsm = median(recentRows.map((row) => row.value / row.actualArea));
-  const priorMedianPsm = median(priorRows.map((row) => row.value / row.actualArea));
-  const changePct = priorMedianPsm > 0 ? ((recentMedianPsm - priorMedianPsm) / priorMedianPsm) * 100 : null;
-  const direction = !Number.isFinite(changePct) || Math.abs(changePct) < 2 ? 0 : Math.sign(changePct);
+  const recentMedianPsm = recentRows.length ? median(recentRows.map((row) => row.value / row.actualArea)) : null;
+  const priorMedianPsm = priorRows.length ? median(priorRows.map((row) => row.value / row.actualArea)) : null;
+  const changePct = recentMedianPsm !== null && priorMedianPsm !== null && priorMedianPsm > 0
+    ? ((recentMedianPsm - priorMedianPsm) / priorMedianPsm) * 100
+    : null;
+  const hasComparableChange = typeof changePct === 'number' && Number.isFinite(changePct);
+  const direction = !hasComparableChange || Math.abs(changePct) < 2 ? 0 : Math.sign(changePct);
   const history = monthlyMedians(periodRows);
   const consistency = trendConsistency(history, direction);
   const confidence = confidenceForSamples(recentRows.length, priorRows.length, consistency);
   const minimumSample = Math.min(recentRows.length, priorRows.length);
 
   let trendScore = null;
-  if (confidence !== 'Limited' && Number.isFinite(changePct)) {
+  if (confidence !== 'Limited' && hasComparableChange) {
     if (direction === 0) {
       trendScore = 0;
     } else {
@@ -432,7 +451,6 @@ const calculateTrendMetrics = (rows, anchorMilliseconds, windowDays = 90) => {
 
 export const buildPriceTrends = (
   transactions,
-  opportunities,
   dimension = 'area',
   windowDays = 90,
 ) => {
@@ -454,16 +472,6 @@ export const buildPriceTrends = (
     groups.set(value.key, group);
   });
 
-  const opportunityScoresByGroup = new Map();
-  opportunities.forEach((row) => {
-    if (row.discountPct <= 0 || !Number.isFinite(row.opportunityScore)) return;
-    const value = getDimensionValue(row, dimension);
-    if (!value) return;
-    const scores = opportunityScoresByGroup.get(value.key) ?? [];
-    scores.push(row.opportunityScore);
-    opportunityScoresByGroup.set(value.key, scores);
-  });
-
   const rows = [...groups.values()]
     .map((group) => {
       const metrics = calculateTrendMetrics(group.rows, anchorMilliseconds, windowDays);
@@ -471,7 +479,6 @@ export const buildPriceTrends = (
       group.rows.forEach((row) => areaCounts.set(row.areaKey, (areaCounts.get(row.areaKey) ?? 0) + 1));
       const primaryAreaKey = [...areaCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? '';
       const primaryArea = group.rows.find((row) => row.areaKey === primaryAreaKey)?.area ?? '';
-      const opportunityScores = opportunityScoresByGroup.get(group.key) ?? [];
       return {
         id: `${dimension}-${group.key}`,
         dimension,
@@ -481,8 +488,6 @@ export const buildPriceTrends = (
         primaryAreaKey,
         totalSales: group.rows.length,
         ...metrics,
-        opportunityIndex: opportunityScores.length ? median(opportunityScores) : null,
-        opportunityMatches: opportunityScores.length,
       };
     })
     .filter((row) => row.recentSales > 0 || row.priorSales > 0)

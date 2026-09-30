@@ -19,6 +19,15 @@
     },
     "portalAllowedOrigin": {
       "value": "${MARKET_API_ALLOWED_ORIGIN}"
+    },
+    "supabaseUrl": {
+      "value": "${SUPABASE_URL}"
+    },
+    "supabasePublishableKey": {
+      "value": "${SUPABASE_PUBLISHABLE_KEY}"
+    },
+    "marketReviewerEmails": {
+      "value": "${MARKET_REVIEWER_EMAILS}"
     }
   }
 }

@@ -18,6 +18,12 @@ export const getSqlServer = () => required('AZURE_SQL_SERVER');
 export const getSqlDatabase = () => required('AZURE_SQL_DATABASE');
 export const getSqlManagedIdentityClientId = () => required('AZURE_SQL_MANAGED_IDENTITY_CLIENT_ID');
 
+const normalizedUrl = (value: string | undefined): string => (value || '').trim().replace(/\/$/, '');
+const emailList = (value: string | undefined): string[] => (value || '')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
 export const getRuntimeConfig = () => ({
   allowedOrigin: process.env.MARKET_API_ALLOWED_ORIGIN?.trim() || '*',
   overlapDays: integer('DLD_SYNC_OVERLAP_DAYS', 3, 1, 14),
@@ -25,4 +31,7 @@ export const getRuntimeConfig = () => ({
   maximumRows: integer('DLD_MAX_ROWS', 250_000, 1_000, 1_000_000),
   requestTimeoutMs: integer('DLD_REQUEST_TIMEOUT_MS', 180_000, 10_000, 300_000),
   manualSyncCooldownMinutes: integer('DLD_MANUAL_SYNC_COOLDOWN_MINUTES', 30, 1, 1440),
+  supabaseUrl: normalizedUrl(process.env.SUPABASE_URL),
+  supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY?.trim() || '',
+  reviewerEmails: emailList(process.env.MARKET_REVIEWER_EMAILS),
 });

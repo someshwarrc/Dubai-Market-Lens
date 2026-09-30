@@ -50,6 +50,14 @@ param location string
 param vnetEnabled bool
 @description('Exact browser origin allowed to call the public read API.')
 param portalAllowedOrigin string = 'http://localhost:5173'
+@description('Supabase project URL used to validate transaction reviewer sessions.')
+param supabaseUrl string = ''
+@secure()
+@description('Supabase publishable key used only to validate signed-in users with Supabase Auth.')
+param supabasePublishableKey string = ''
+@secure()
+@description('Optional comma-separated bootstrap allow-list for transaction reviewers.')
+param marketReviewerEmails string = ''
 param apiServiceName string = ''
 param apiUserAssignedIdentityName string = ''
 param applicationInsightsName string = ''
@@ -137,6 +145,9 @@ module api './app/api.bicep' = {
       AZURE_SQL_SERVER: sql.outputs.serverHost
       AZURE_SQL_DATABASE: sql.outputs.databaseName
       AZURE_SQL_MANAGED_IDENTITY_CLIENT_ID: apiUserAssignedIdentity.outputs.clientId
+      SUPABASE_URL: supabaseUrl
+      SUPABASE_PUBLISHABLE_KEY: supabasePublishableKey
+      MARKET_REVIEWER_EMAILS: marketReviewerEmails
     }
     virtualNetworkSubnetId: vnetEnabled ? serviceVirtualNetwork.outputs.appSubnetID : ''
   }
