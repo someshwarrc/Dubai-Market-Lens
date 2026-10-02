@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import OpportunityDataGrid from '../tables/OpportunityDataGrid';
 import ValuationDataGrid from '../tables/ValuationDataGrid';
+import { wideDialogPaperSx } from '../common/dialogStyles';
 import { buildAreaOpportunities, selectOpportunityValuations } from '../../utils/marketAnalytics';
 import { formatAed, formatNumber, formatPercent } from '../../utils/formatters';
 
@@ -81,10 +82,10 @@ export default function ValuationOpportunityDialog({
       onClose={onClose}
       fullScreen={fullScreen}
       fullWidth
-      maxWidth="xl"
+      maxWidth={false}
       aria-labelledby="valuation-opportunities-title"
       aria-describedby="valuation-opportunities-description"
-      slotProps={{ paper: { sx: { maxHeight: fullScreen ? '100%' : 'calc(100% - 48px)' } } }}
+      slotProps={{ paper: { sx: wideDialogPaperSx(fullScreen) } }}
     >
       <DialogTitle id="valuation-opportunities-title" component="div" sx={{ pr: 8, pb: 1 }}>
         <Typography variant="h2">Valuation opportunities by area</Typography>

@@ -32,6 +32,8 @@ Avoid speculative trading aesthetics, decorative gradients, glass-heavy dashboar
 8. Offer a top-bar AED/sq.ft or AED/sq.m selector, defaulting to square feet and remembering the browser preference. Convert price and area displays, chart values, table filters and exports together. Preserve source data, analytics, and area-filter bounds in square metres so changing units does not change the selected records or scores.
 9. Treat transaction freshness as a backend responsibility. The portal reads current transaction observations from the Azure API when configured and shows the bundled snapshot only when the API is unavailable during rollout or recovery.
 10. Keep personal evidence separate from data quality decisions. A signed-in user's favorites are private purchase-planning references; reviewer dislikes are global moderation decisions that remove a transaction from dashboard analysis.
+11. Make work visible. Network activity and expensive browser-side filter recalculation use a persistent 10px activity bar at the very top of the viewport, without blocking the current dashboard.
+12. Use desktop space for evidence. The dashboard occupies 90% of the area remaining beside the filter pane, while evidence dialogs occupy 90% of the full viewport and may overlay the filter pane. Preserve full-screen dialogs on smaller screens.
 
 ## Transaction Data Operations
 

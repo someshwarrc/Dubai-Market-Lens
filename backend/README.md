@@ -23,7 +23,7 @@ This Azure Functions application refreshes the dashboard's DLD transactions, pro
 | `POST` | `/api/operations/market-data/sync` | Function key | Runs a guarded three-feed recovery sync. |
 | `POST` | `/api/operations/transactions/review` | Supabase reviewer | Marks a transaction number as liked, disliked, or restored. |
 
-Transaction and valuation pages are limited to 20,000 rows and a 366-day date range.
+Transaction and valuation queries default to the rolling 30-day period ending today. Pages are limited to 20,000 rows and callers may explicitly request up to a 366-day date range.
 
 ## Transaction reviewer authentication
 

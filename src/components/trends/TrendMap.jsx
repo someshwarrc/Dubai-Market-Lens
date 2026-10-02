@@ -190,7 +190,7 @@ export default function TrendMap({ mapData, selectedLabel, height = 390 }) {
         )}
         {ready && !points.length && (
           <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', p: 3, bgcolor: 'rgba(248,250,252,.88)' }}>
-            <Typography color="text.secondary" textAlign="center">
+            <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
               No cached area centroid is available for this selection.
             </Typography>
           </Box>

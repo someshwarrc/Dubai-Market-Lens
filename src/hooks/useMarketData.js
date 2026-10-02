@@ -2,19 +2,25 @@ import { useCallback, useEffect, useState } from 'react';
 import { loadMarketData } from '../data/marketData';
 import { reviewApiTransaction, updateCachedTransactionReview } from '../data/marketApi';
 
-export const useMarketData = () => {
-  const [state, setState] = useState({ data: null, loading: true, error: null });
+export const useMarketData = ({ from, to }) => {
+  const [state, setState] = useState({ data: null, loading: true, refreshing: false, error: null });
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
-    loadMarketData()
-      .then((data) => active && setState({ data, loading: false, error: null }))
-      .catch((error) => active && setState({ data: null, loading: false, error }));
+    setState((current) => ({ ...current, loading: !current.data, refreshing: Boolean(current.data), error: null }));
+    loadMarketData({ from, to, signal: controller.signal })
+      .then((data) => active && setState({ data, loading: false, refreshing: false, error: null }))
+      .catch((error) => {
+        if (!active || error?.name === 'AbortError') return;
+        setState((current) => ({ ...current, loading: false, refreshing: false, error }));
+      });
 
     return () => {
       active = false;
+      controller.abort();
     };
-  }, []);
+  }, [from, to]);
 
   const reviewTransaction = useCallback(async ({ transactionNumber, decision, accessToken, restoreRows = [] }) => {
     const removedRows = decision === 'disliked'

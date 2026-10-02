@@ -1,5 +1,5 @@
 import { MeasurementUnitProvider } from './hooks/useMeasurementUnit';
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState, useTransition } from 'react';
 import {
   Alert,
   Box,
@@ -7,7 +7,6 @@ import {
   Chip,
   CircularProgress,
   CssBaseline,
-  LinearProgress,
   Paper,
   Snackbar,
   Skeleton,
@@ -22,6 +21,7 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import AppShell from './components/layout/AppShell';
 import KpiStrip from './components/kpis/KpiStrip';
 import SectionHeader from './components/common/SectionHeader';
+import TopActivityBar from './components/common/TopActivityBar';
 import MonthlyPriceChart from './components/charts/MonthlyPriceChart';
 import AreaOpportunityChart from './components/charts/AreaOpportunityChart';
 import PropertyTypeChart from './components/charts/PropertyTypeChart';
@@ -71,8 +71,8 @@ const viewMeta = {
 function LoadingDashboard() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <TopActivityBar active label="Loading live market data" />
       <Box sx={{ height: 64, bgcolor: '#181d26' }} />
-      <LinearProgress color="secondary" />
       <Box sx={{ maxWidth: 1480, mx: 'auto', px: { xs: 2, md: 4 }, py: 5 }}>
         <Stack spacing={3}>
           <Box>
@@ -159,22 +159,27 @@ function OverviewView({
 function AppContent() {
   const [mode, setMode] = useState(() => localStorage.getItem('market-lens-theme') || 'light');
   const [activeView, setActiveView] = useState('opportunities');
+  const [navigationPending, startNavigationTransition] = useTransition();
   const [filters, setFilters] = useState(createDefaultFilters);
-  const filtersInitialized = useRef(false);
   const deferredFilters = useDeferredValue(filters);
-  const { data, loading, error, reviewTransaction } = useMarketData();
+  const { data, loading, refreshing, error, reviewTransaction } = useMarketData({
+    from: filters.dateFrom,
+    to: filters.dateTo,
+  });
   const auth = useSupabaseAuth();
   const favorites = useTransactionFavorites(auth.accessToken);
   const [pendingTransactionNumber, setPendingTransactionNumber] = useState('');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [notice, setNotice] = useState(null);
   const theme = useMemo(() => createAppTheme(mode), [mode]);
-
-  useEffect(() => {
-    if (!data || filtersInitialized.current) return;
-    filtersInitialized.current = true;
-    setFilters(createDefaultFilters(data.transactions));
-  }, [data]);
+  const filterProcessing = filters !== deferredFilters;
+  const dashboardBusy = filterProcessing
+    || refreshing
+    || navigationPending
+    || auth.loading
+    || favorites.loading
+    || Boolean(pendingTransactionNumber)
+    || Boolean(favorites.pendingTransactionNumber);
 
   const toggleMode = () => {
     const next = mode === 'light' ? 'dark' : 'light';
@@ -298,17 +303,26 @@ function AppContent() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <TopActivityBar active={dashboardBusy} />
       <AppShell
         mode={mode}
         onToggleMode={toggleMode}
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={(value) => startNavigationTransition(() => setActiveView(value))}
         filters={filters}
         options={options}
         onFiltersChange={setFilters}
-        onResetFilters={() => setFilters(createDefaultFilters(data.transactions))}
+        onResetFilters={() => setFilters(createDefaultFilters())}
       >
-        <Box sx={{ maxWidth: 1640, mx: 'auto', px: { xs: 2, md: 3.5, xl: 4 }, py: { xs: 3, md: 4 } }}>
+        <Box
+          sx={{
+            width: { xs: '100%', lg: '90%' },
+            maxWidth: 'none',
+            mx: 'auto',
+            px: { xs: 2, md: 3.5, xl: 4 },
+            py: { xs: 3, md: 4 },
+          }}
+        >
           <Stack spacing={4}>
             {data.transactionSource?.fallbackReason && (
               <Alert severity="warning" variant="outlined">

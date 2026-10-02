@@ -4,30 +4,15 @@ import {
   buildAreaOpportunities,
   buildPriceTrends,
   createDefaultFilters,
-  getTransactionDateRange,
   selectOpportunityValuations,
 } from './marketAnalytics.js';
 
-test('derives the default date range from the loaded transaction dataset', () => {
-  const transactions = [
-    { date: '2026-09-27' },
-    { date: '2026-01-01' },
-    { date: '' },
-    { date: '2026-06-15' },
-  ];
-
-  assert.deepEqual(getTransactionDateRange(transactions), {
-    dateFrom: '2026-01-01',
-    dateTo: '2026-09-27',
-  });
+test('defaults dashboard filters to the rolling 30-day period ending today', () => {
+  const filters = createDefaultFilters('2026-10-02');
   assert.deepEqual(
-    { dateFrom: createDefaultFilters(transactions, '2026-10-01').dateFrom, dateTo: createDefaultFilters(transactions, '2026-10-01').dateTo },
-    { dateFrom: '2026-01-01', dateTo: '2026-10-01' },
+    { dateFrom: filters.dateFrom, dateTo: filters.dateTo },
+    { dateFrom: '2026-09-02', dateTo: '2026-10-02' },
   );
-});
-
-test('uses an open date range when no dated transactions are loaded', () => {
-  assert.deepEqual(getTransactionDateRange([]), { dateFrom: '', dateTo: '' });
 });
 
 test('uses null rather than zero when a trend comparison period has no sales', () => {

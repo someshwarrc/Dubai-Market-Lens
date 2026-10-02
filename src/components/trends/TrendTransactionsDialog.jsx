@@ -17,6 +17,7 @@ import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import TransactionValueChart from './TransactionValueChart';
 import TrendMap from './TrendMap';
 import TransactionActionButtons from '../tables/TransactionActionButtons';
+import { wideDialogPaperSx } from '../common/dialogStyles';
 import {
   buildTransactionValueHistory,
   summarizeTrendTransactions,
@@ -142,10 +143,10 @@ export default function TrendTransactionsDialog({
       onClose={onClose}
       fullScreen={fullScreen}
       fullWidth
-      maxWidth="xl"
+      maxWidth={false}
       aria-labelledby="trend-transactions-title"
       aria-describedby="trend-transactions-description"
-      slotProps={{ paper: { sx: { maxHeight: fullScreen ? '100%' : 'calc(100% - 48px)' } } }}
+      slotProps={{ paper: { sx: wideDialogPaperSx(fullScreen) } }}
     >
       <DialogTitle id="trend-transactions-title" component="div" sx={{ pr: 8, pb: 1 }}>
         <Typography variant="h2">Transactions for {group?.label ?? 'selected signal'}</Typography>

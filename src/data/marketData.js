@@ -232,20 +232,42 @@ const attachProjectMetadata = (transactions, projects) => {
   return transactions;
 };
 
-export const loadMarketData = async () => {
-  const [SQL, databaseBytes, apiResult] = await Promise.all([
+let referenceRowsPromise;
+const loadReferenceRows = async () => {
+  if (referenceRowsPromise) return referenceRowsPromise;
+  referenceRowsPromise = Promise.all([
     initSqlJs({ locateFile: () => sqlWasmUrl }),
     downloadDatabase(),
-    loadApiMarketData().catch((error) => ({ error })),
+  ]).then(([SQL, databaseBytes]) => {
+    const database = new SQL.Database(databaseBytes);
+    try {
+      return {
+        transactionRows: queryRows(database, 'SELECT * FROM transactions'),
+        valuationRows: queryRows(database, 'SELECT * FROM valuations'),
+        projectRows: queryRows(database, 'SELECT * FROM projects'),
+        areaLocationRows: queryRows(database, 'SELECT * FROM area_locations'),
+      };
+    } finally {
+      database.close();
+    }
+  }).catch((error) => {
+    referenceRowsPromise = null;
+    throw error;
+  });
+  return referenceRowsPromise;
+};
+
+export const loadMarketData = async ({ from, to, signal } = {}) => {
+  const [referenceRows, apiResult] = await Promise.all([
+    loadReferenceRows(),
+    loadApiMarketData({ from, to, signal }).catch((error) => {
+      if (error?.name === 'AbortError') throw error;
+      return { error };
+    }),
   ]);
 
-  const database = new SQL.Database(databaseBytes);
   const shouldUseApi = apiResult && !apiResult.error;
-  const transactionRows = shouldUseApi ? [] : queryRows(database, 'SELECT * FROM transactions');
-  const valuationRows = shouldUseApi ? [] : queryRows(database, 'SELECT * FROM valuations');
-  const projectRows = shouldUseApi ? [] : queryRows(database, 'SELECT * FROM projects');
-  const areaLocationRows = queryRows(database, 'SELECT * FROM area_locations');
-  database.close();
+  const { transactionRows, valuationRows, projectRows, areaLocationRows } = referenceRows;
 
   const projects = shouldUseApi ? apiResult.projects.map(normalizeApiProject) : projectRows.map(normalizeProject);
   const transactions = attachProjectMetadata(
@@ -265,6 +287,7 @@ export const loadMarketData = async () => {
       lastSync: shouldUseApi ? apiResult.syncStatus?.lastSync ?? null : null,
       fallbackReason: apiResult?.cacheError?.message ?? apiResult?.error?.message ?? null,
       cachedAt: shouldUseApi ? apiResult.savedAt ?? null : null,
+      requestedRange: shouldUseApi ? apiResult.requestedRange ?? null : { from, to },
     },
   };
 };

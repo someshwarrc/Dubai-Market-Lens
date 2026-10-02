@@ -1,3 +1,5 @@
+import { localIsoDate, rollingDateRange } from './dateRange.js';
+
 const median = (values) => {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -9,44 +11,33 @@ const includesAny = (selected, value) => !selected.length || selected.includes(v
 const inRange = (value, minimum, maximum) =>
   (!minimum || value >= Number(minimum)) && (!maximum || value <= Number(maximum));
 
-export const getTransactionDateRange = (transactions = []) => transactions.reduce(
-  (range, row) => {
-    if (!row.date) return range;
-    return {
-      dateFrom: !range.dateFrom || row.date < range.dateFrom ? row.date : range.dateFrom,
-      dateTo: !range.dateTo || row.date > range.dateTo ? row.date : range.dateTo,
-    };
-  },
-  { dateFrom: '', dateTo: '' },
-);
+export { localIsoDate };
 
-export const localIsoDate = (date = new Date()) => {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+export const createDefaultFilters = (today = localIsoDate()) => {
+  const range = rollingDateRange(today);
+  return {
+    dateFrom: range.from,
+    dateTo: range.to,
+    areas: [],
+    propertyTypes: [],
+    subTypes: [],
+    groups: ['sales'],
+    procedures: [],
+    planStatuses: [],
+    tenures: [],
+    usages: [],
+    rooms: [],
+    projects: [],
+    developers: [],
+    metros: [],
+    malls: [],
+    landmarks: [],
+    minValue: '',
+    maxValue: '',
+    minArea: '',
+    maxArea: '',
+  };
 };
-
-export const createDefaultFilters = (transactions = [], today = localIsoDate()) => ({
-  dateFrom: getTransactionDateRange(transactions).dateFrom,
-  dateTo: today,
-  areas: [],
-  propertyTypes: [],
-  subTypes: [],
-  groups: ['sales'],
-  procedures: [],
-  planStatuses: [],
-  tenures: [],
-  usages: [],
-  rooms: [],
-  projects: [],
-  developers: [],
-  metros: [],
-  malls: [],
-  landmarks: [],
-  minValue: '',
-  maxValue: '',
-  minArea: '',
-  maxArea: '',
-});
 
 export const filterTransactions = (rows, filters) =>
   rows.filter((row) =>
