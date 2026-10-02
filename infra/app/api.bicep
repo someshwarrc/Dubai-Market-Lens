@@ -5,6 +5,8 @@ param tags object = {}
 param applicationInsightsName string = ''
 param appServicePlanId string
 param appSettings object = {}
+@description('Browser origins allowed to call the Function App APIs.')
+param allowedCorsOrigins array = []
 param runtimeName string 
 param runtimeVersion string 
 param serviceName string = 'api'
@@ -100,6 +102,10 @@ module api 'br/public:avm/res/web/site:0.15.1' = {
     }
     siteConfig: {
       alwaysOn: false
+      cors: {
+        allowedOrigins: allowedCorsOrigins
+        supportCredentials: false
+      }
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
     }

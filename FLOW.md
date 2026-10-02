@@ -302,6 +302,8 @@ All KPIs use the currently filtered datasets.
 | Valuation count | Number of filtered valuation CSV rows | Includes nominal rows visible in the valuation explorer, even though nominal rows are excluded from benchmarks. |
 | Median valuation AED/m² | Median of valuation `ACTUAL_WORTH / ACTUAL_AREA` where AED/m² is positive and `ACTUAL_WORTH >= 1,000` | Calculated across all filtered eligible valuations, not a specific transaction cohort. |
 
+The valuation-backed shortlist KPI is interactive. It opens an area evidence dialog containing the shortlisted sales, each sale's benchmark and cohort details, and the valuation rows eligible for the selected area's local benchmark. The dialog preserves the current dashboard filters and does not imply direct transaction-to-valuation matching.
+
 ### Median definition
 
 For sorted values:
@@ -339,7 +341,7 @@ For each area:
 - `medianDiscount` = median discount across all positive High/Medium gaps in the area
 - `saving` = sum of positive indicative gaps across all positive High/Medium gaps in the area
 
-Areas with at least one 15%+ opportunity are ranked by opportunity count, then median discount. Only the top 10 are shown.
+Areas with at least one 15%+ opportunity are ranked by opportunity count, then median discount. Only the top 10 are shown. Selecting an area bar opens the same evidence dialog preselected to that area, so the summary can be traced to the exact shortlisted transactions and local valuation cohort.
 
 ### 10.3 Monthly price evidence
 
@@ -383,6 +385,8 @@ The Opportunity Index column in the trend table is the median of existing positi
 ### 10.6 Trend transaction evidence
 
 The eye action on each trend row opens the eligible single-asset sales for that exact area, developer, project, or property-type group under the current dashboard filters. The dialog presents overall medians, a monthly median recorded-value line, the approximate area map, and a simplified paginated transaction table. It does not broaden the trend eligibility rule or mix valuation records into the transaction evidence.
+
+Each transaction row exposes a private favorite action for authenticated users. Reviewer-authorized users also see like and dislike actions. Favorites are stored per user and do not affect calculations. A reviewer dislike is global: the transaction is excluded by the backend from every dashboard response and therefore disappears from KPIs, charts, trend dialogs, and transaction tables after refresh.
 
 ### 10.7 Approximate area map
 

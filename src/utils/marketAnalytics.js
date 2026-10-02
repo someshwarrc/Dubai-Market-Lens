@@ -256,21 +256,51 @@ export const buildMonthlyTrend = (transactions, valuations) => {
     }));
 };
 
-export const buildAreaOpportunities = (opportunities) => {
+export const buildAreaOpportunities = (opportunities, limit = 10) => {
   const areas = new Map();
-  opportunities.filter((row) => row.discountPct > 0 && row.confidence !== 'Exploratory').forEach((row) => {
-    const current = areas.get(row.areaKey) ?? { area: row.area, discounts: [], opportunities: 0, saving: 0 };
+  opportunities.filter((row) => row.discountPct >= 15 && row.confidence !== 'Exploratory').forEach((row) => {
+    const current = areas.get(row.areaKey) ?? {
+      areaKey: row.areaKey,
+      area: row.area,
+      discounts: [],
+      opportunities: 0,
+      saving: 0,
+      highConfidence: 0,
+      mediumConfidence: 0,
+    };
     current.discounts.push(row.discountPct);
-    current.opportunities += row.discountPct >= 15 ? 1 : 0;
+    current.opportunities += 1;
     current.saving += Math.max(0, row.estimatedSaving);
+    if (row.confidence === 'High') current.highConfidence += 1;
+    if (row.confidence === 'Medium') current.mediumConfidence += 1;
     areas.set(row.areaKey, current);
   });
 
   return [...areas.values()]
-    .filter((row) => row.opportunities > 0)
     .map((row) => ({ ...row, medianDiscount: median(row.discounts) }))
     .sort((a, b) => b.opportunities - a.opportunities || b.medianDiscount - a.medianDiscount)
-    .slice(0, 10);
+    .slice(0, limit);
+};
+
+export const selectOpportunityValuations = (valuations, areaKey, opportunities) => {
+  if (!areaKey || !opportunities.length) return [];
+  const rules = opportunities.map((row) => ({
+    basis: row.benchmarkBasis,
+    propertyTypeKey: row.propertyTypeKey,
+    subTypeKey: row.subTypeKey,
+  }));
+  return valuations
+    .filter((valuation) => {
+      if (valuation.areaKey !== areaKey || valuation.actualWorth < 1_000 || valuation.actualArea <= 0 || valuation.pricePerSqm <= 0) return false;
+      return rules.some((rule) => {
+        if (rule.basis === 'Area + type + subtype') {
+          return valuation.propertyTypeKey === rule.propertyTypeKey && valuation.subTypeKey === rule.subTypeKey;
+        }
+        if (rule.basis === 'Area + property type') return valuation.propertyTypeKey === rule.propertyTypeKey;
+        return false;
+      });
+    })
+    .sort((left, right) => right.date.localeCompare(left.date) || right.actualWorth - left.actualWorth);
 };
 
 export const buildPropertyTypeComparison = (transactions, valuations) => {

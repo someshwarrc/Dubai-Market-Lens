@@ -1,5 +1,5 @@
 import { useMeasurementUnit } from '../../hooks/useMeasurementUnit';
-import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
 import { formatAed, formatNumber, formatPercent } from '../../utils/formatters';
@@ -12,12 +12,26 @@ const Metric = ({ label, value, note, last }) => (
   </Box>
 );
 
-export default function KpiStrip({ summary }) {
+export default function KpiStrip({ summary, onOpenOpportunities }) {
   const { areaLabel, priceLabel, priceFromSqm } = useMeasurementUnit();
   return (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1.35fr repeat(4, 1fr)' } }}>
-        <Box sx={{ p: 2.5, bgcolor: 'secondary.main', color: 'secondary.contrastText', minHeight: 126 }}>
+        <ButtonBase
+          onClick={onOpenOpportunities}
+          aria-label={`Open ${formatNumber(summary.opportunityCount)} valuation opportunities by area`}
+          sx={{
+            p: 2.5,
+            bgcolor: 'secondary.main',
+            color: 'secondary.contrastText',
+            minHeight: 126,
+            display: 'block',
+            textAlign: 'left',
+            width: '100%',
+            borderRadius: 0,
+            '&:focus-visible': { outline: '3px solid', outlineColor: 'info.light', outlineOffset: -3 },
+          }}
+        >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="caption" sx={{ color: 'inherit', opacity: 0.85 }}>Valuation-backed shortlist</Typography>
             <Chip size="small" icon={<ArrowDownwardRoundedIcon />} label="15%+ gap" sx={{ bgcolor: 'rgba(255,255,255,.9)', color: '#181d26' }} />
@@ -28,7 +42,10 @@ export default function KpiStrip({ summary }) {
           <Typography variant="body2" sx={{ mt: 1, color: 'inherit', opacity: 0.9 }}>
             {formatAed(summary.potentialSaving)} aggregate indicative gap
           </Typography>
-        </Box>
+          <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            View evidence by area
+          </Typography>
+        </ButtonBase>
         <Metric label="Median discount" value={formatPercent(summary.medianDiscount)} note="shortlisted deals" />
         <Metric label="Valuation coverage" value={formatPercent(summary.valuationCoverage, 0)} note="eligible sales matched" />
         <Metric label="Recorded deal value" value={formatAed(summary.totalValue)} note={`${formatNumber(summary.dealCount)} unique deals`} />

@@ -6,6 +6,10 @@ export type AuthenticatedReviewer = {
   email: string;
 };
 
+export type AuthenticatedUser = AuthenticatedReviewer & {
+  canReview: boolean;
+};
+
 type SupabaseUser = {
   id?: unknown;
   email?: unknown;
@@ -23,7 +27,7 @@ export class AuthenticationError extends Error {
 const bearerToken = (request: HttpRequest): string => {
   const authorization = request.headers.get('authorization') || '';
   const match = /^Bearer\s+(.+)$/i.exec(authorization);
-  if (!match?.[1]) throw new AuthenticationError('Sign in with an authorized Google account to review transactions.', 401);
+  if (!match?.[1]) throw new AuthenticationError('Sign in with Google to continue.', 401);
   return match[1];
 };
 
@@ -42,11 +46,11 @@ export const canReviewTransactions = (
   return roles.includes('reviewer') || roles.includes('admin') || reviewerEmails.includes(user.email.toLowerCase());
 };
 
-export const authenticateReviewer = async (request: HttpRequest): Promise<AuthenticatedReviewer> => {
+export const authenticateUser = async (request: HttpRequest): Promise<AuthenticatedUser> => {
   const token = bearerToken(request);
   const { supabaseUrl, supabasePublishableKey, reviewerEmails } = getRuntimeConfig();
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new AuthenticationError('Transaction review authentication is not configured.', 503);
+    throw new AuthenticationError('User authentication is not configured.', 503);
   }
 
   let response: Response;
@@ -67,9 +71,21 @@ export const authenticateReviewer = async (request: HttpRequest): Promise<Authen
   }
 
   const user = await response.json() as SupabaseUser;
-  if (!canReviewTransactions(user, reviewerEmails)) {
-    throw new AuthenticationError('Your account is signed in but is not authorized to review transactions.', 403);
+  if (typeof user.id !== 'string' || typeof user.email !== 'string' || !user.email_confirmed_at) {
+    throw new AuthenticationError('Your sign-in account does not have a confirmed email address.', 403);
   }
 
-  return { userId: user.id, email: user.email.toLowerCase() };
+  return {
+    userId: user.id,
+    email: user.email.toLowerCase(),
+    canReview: canReviewTransactions(user, reviewerEmails),
+  };
+};
+
+export const authenticateReviewer = async (request: HttpRequest): Promise<AuthenticatedReviewer> => {
+  const user = await authenticateUser(request);
+  if (!user.canReview) {
+    throw new AuthenticationError('Your account is signed in but is not authorized to review transactions.', 403);
+  }
+  return { userId: user.userId, email: user.email };
 };

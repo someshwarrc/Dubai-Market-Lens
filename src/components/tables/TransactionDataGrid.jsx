@@ -1,10 +1,9 @@
 import { useMeasurementColumns } from '../../hooks/useMeasurementUnit';
 import { useMemo } from 'react';
-import { Chip, IconButton, Stack, Tooltip } from '@mui/material';
+import { Chip } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
-import ThumbDownAltOutlinedIcon from '@mui/icons-material/ThumbDownAltOutlined';
-import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
 import DataTableFrame from './DataTableFrame';
+import TransactionActionButtons from './TransactionActionButtons';
 import { formatAed, formatDate, formatNumber } from '../../utils/formatters';
 
 const dataColumns = [
@@ -29,56 +28,37 @@ const dataColumns = [
   { field: 'nearestLandmark', headerName: 'Nearest landmark', width: 170 },
 ];
 
-export default function TransactionDataGrid({ rows, canReview, pendingTransactionNumber, onReview }) {
+export default function TransactionDataGrid({
+  rows,
+  canFavorite,
+  canReview,
+  favoriteTransactionNumbers,
+  pendingFavoriteTransactionNumber,
+  pendingTransactionNumber,
+  onFavorite,
+  onReview,
+}) {
   const columns = useMemo(() => [{
     field: 'reviewActions',
-    headerName: 'Review',
-    description: 'Mark the complete transaction number as trusted or dubious.',
-    width: 104,
+    headerName: 'Actions',
+    description: 'Save personal evidence or review the complete transaction number.',
+    width: 148,
     sortable: false,
     filterable: false,
     disableColumnMenu: true,
-    renderCell: ({ row }) => {
-      const pending = pendingTransactionNumber === row.transactionNumber;
-      const unavailableTitle = canReview ? '' : 'Sign in with an authorized Google account to review transactions';
-      return (
-        <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center', height: '100%' }}>
-          <Tooltip title={unavailableTitle || (row.reviewDecision === 'liked' ? 'Marked as trusted' : 'Mark as trusted')}>
-            <span>
-              <IconButton
-                aria-label={`Like transaction ${row.transactionNumber}`}
-                color={row.reviewDecision === 'liked' ? 'success' : 'default'}
-                disabled={!canReview || pending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onReview(row, 'liked');
-                }}
-                sx={{ width: 44, height: 44 }}
-              >
-                <ThumbUpAltOutlinedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title={unavailableTitle || 'Mark as dubious and hide from every dashboard'}>
-            <span>
-              <IconButton
-                aria-label={`Dislike and hide transaction ${row.transactionNumber}`}
-                color="error"
-                disabled={!canReview || pending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onReview(row, 'disliked');
-                }}
-                sx={{ width: 44, height: 44 }}
-              >
-                <ThumbDownAltOutlinedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
-      );
-    },
-  }, ...dataColumns], [canReview, onReview, pendingTransactionNumber]);
+    renderCell: ({ row }) => (
+      <TransactionActionButtons
+        row={row}
+        canFavorite={canFavorite}
+        canReview={canReview}
+        favoriteTransactionNumbers={favoriteTransactionNumbers}
+        pendingFavoriteTransactionNumber={pendingFavoriteTransactionNumber}
+        pendingTransactionNumber={pendingTransactionNumber}
+        onFavorite={onFavorite}
+        onReview={onReview}
+      />
+    ),
+  }, ...dataColumns], [canFavorite, canReview, favoriteTransactionNumbers, onFavorite, onReview, pendingFavoriteTransactionNumber, pendingTransactionNumber]);
   const displayColumns = useMeasurementColumns(columns);
   return (
     <DataTableFrame height="calc(100vh - 240px)">

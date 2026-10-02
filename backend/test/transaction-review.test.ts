@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { canReviewTransactions } from '../src/auth/supabaseAuth.js';
 import { parseTransactionReview } from '../src/functions/reviewTransaction.js';
+import { parseFavoriteRequest } from '../src/functions/transactionFavorites.js';
 
 test('accepts the supported transaction review decisions', () => {
   assert.deepEqual(parseTransactionReview({ transactionNumber: ' 123-456 ', decision: 'disliked' }), {
@@ -20,4 +21,14 @@ test('authorizes only confirmed allow-listed or app-role reviewers', () => {
   assert.equal(canReviewTransactions({ ...baseUser, email: 'staff@example.com', app_metadata: { review_role: 'reviewer' } }, []), true);
   assert.equal(canReviewTransactions({ ...baseUser, email: 'viewer@example.com', app_metadata: { role: 'viewer' } }, []), false);
   assert.equal(canReviewTransactions({ ...baseUser, email_confirmed_at: null }, ['reviewer@example.com']), false);
+});
+
+test('accepts explicit favorite state and rejects malformed requests', () => {
+  assert.deepEqual(parseFavoriteRequest({ transactionNumber: ' 11-29563-2026 ', favorite: true }), {
+    transactionNumber: '11-29563-2026',
+    favorite: true,
+  });
+  assert.equal(parseFavoriteRequest({ transactionNumber: '11-29563-2026', favorite: false }).favorite, false);
+  assert.throws(() => parseFavoriteRequest({ transactionNumber: '', favorite: true }), /transactionNumber/);
+  assert.throws(() => parseFavoriteRequest({ transactionNumber: '11-29563-2026', favorite: 'yes' }), /favorite/);
 });

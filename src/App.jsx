@@ -18,6 +18,7 @@ import {
 import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 import DataUsageRoundedIcon from '@mui/icons-material/DataUsageRounded';
+import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import AppShell from './components/layout/AppShell';
 import KpiStrip from './components/kpis/KpiStrip';
 import SectionHeader from './components/common/SectionHeader';
@@ -28,8 +29,10 @@ import ActivityChart from './components/charts/ActivityChart';
 import TransactionDataGrid from './components/tables/TransactionDataGrid';
 import ValuationDataGrid from './components/tables/ValuationDataGrid';
 import TransactionReviewAccess from './components/auth/TransactionReviewAccess';
+import ValuationOpportunityDialog from './components/opportunities/ValuationOpportunityDialog';
 import { useMarketData } from './hooks/useMarketData';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
+import { useTransactionFavorites } from './hooks/useTransactionFavorites';
 import { createAppTheme } from './theme/createAppTheme';
 import {
   buildAreaOpportunities,
@@ -110,27 +113,46 @@ function PageIntro({ activeView, transactions, valuationCount }) {
   );
 }
 
-function OpportunityView({ transactions, areaLocations }) {
+function OpportunityView({ transactions, areaLocations, transactionActions }) {
   return (
     <Stack spacing={4}>
       <Suspense fallback={<Skeleton variant="rounded" height={720} />}>
-        <TrendDiscovery transactions={transactions} areaLocations={areaLocations} />
+        <TrendDiscovery transactions={transactions} areaLocations={areaLocations} {...transactionActions} />
       </Suspense>
     </Stack>
   );
 }
 
-function OverviewView({ summary, monthlyTrend, propertyComparison, areaOpportunities }) {
+function OverviewView({
+  summary,
+  monthlyTrend,
+  propertyComparison,
+  areaOpportunities,
+  opportunities,
+  valuations,
+  transactionActions,
+}) {
+  const [dialog, setDialog] = useState({ open: false, areaKey: null });
   return (
-    <Stack spacing={4}>
-      <KpiStrip summary={summary} />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 3 }}>
-        <ActivityChart data={monthlyTrend} />
-        <MonthlyPriceChart data={monthlyTrend} />
-        <PropertyTypeChart data={propertyComparison} />
-        <AreaOpportunityChart data={areaOpportunities} />
-      </Box>
-    </Stack>
+    <>
+      <Stack spacing={4}>
+        <KpiStrip summary={summary} onOpenOpportunities={() => setDialog({ open: true, areaKey: null })} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 3 }}>
+          <ActivityChart data={monthlyTrend} />
+          <MonthlyPriceChart data={monthlyTrend} />
+          <PropertyTypeChart data={propertyComparison} />
+          <AreaOpportunityChart data={areaOpportunities} onSelectArea={(areaKey) => setDialog({ open: true, areaKey })} />
+        </Box>
+      </Stack>
+      <ValuationOpportunityDialog
+        open={dialog.open}
+        onClose={() => setDialog({ open: false, areaKey: null })}
+        initialAreaKey={dialog.areaKey}
+        opportunities={opportunities}
+        valuations={valuations}
+        {...transactionActions}
+      />
+    </>
   );
 }
 
@@ -142,7 +164,9 @@ function AppContent() {
   const deferredFilters = useDeferredValue(filters);
   const { data, loading, error, reviewTransaction } = useMarketData();
   const auth = useSupabaseAuth();
+  const favorites = useTransactionFavorites(auth.accessToken);
   const [pendingTransactionNumber, setPendingTransactionNumber] = useState('');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [notice, setNotice] = useState(null);
   const theme = useMemo(() => createAppTheme(mode), [mode]);
 
@@ -190,6 +214,20 @@ function AppContent() {
     }
   }, [auth.accessToken, reviewTransaction, showError]);
 
+  const handleFavorite = useCallback(async (row, favorite) => {
+    try {
+      await favorites.setFavorite(row.transactionNumber, favorite);
+      setNotice({
+        severity: 'success',
+        message: favorite
+          ? `Transaction ${row.transactionNumber} was saved to your purchase evidence.`
+          : `Transaction ${row.transactionNumber} was removed from your saved evidence.`,
+      });
+    } catch (favoriteError) {
+      showError(favoriteError);
+    }
+  }, [favorites.setFavorite, showError]);
+
   const undoReview = useCallback(async () => {
     const undo = notice?.undo;
     if (!undo) return;
@@ -221,6 +259,23 @@ function AppContent() {
   }, [data, deferredFilters]);
 
   const options = useMemo(() => data ? buildFilterOptions(data.transactions, data.valuations) : null, [data]);
+  const canFavorite = Boolean(auth.user && auth.accessToken);
+  const transactionActions = {
+    canFavorite,
+    canReview: favorites.canReview,
+    favoriteTransactionNumbers: favorites.transactionNumbers,
+    pendingFavoriteTransactionNumber: favorites.pendingTransactionNumber,
+    pendingTransactionNumber,
+    onFavorite: handleFavorite,
+    onReview: handleReview,
+  };
+  const transactionRows = showFavoritesOnly
+    ? analytics?.transactions.filter((row) => favorites.transactionNumbers.has(row.transactionNumber)) ?? []
+    : analytics?.transactions ?? [];
+
+  useEffect(() => {
+    if (!canFavorite) setShowFavoritesOnly(false);
+  }, [canFavorite]);
 
   if (loading) return <ThemeProvider theme={theme}><CssBaseline /><LoadingDashboard /></ThemeProvider>;
 
@@ -268,6 +323,7 @@ function AppContent() {
               <OpportunityView
                 transactions={analytics.transactions}
                 areaLocations={data.areaLocations}
+                transactionActions={transactionActions}
               />
             )}
             {activeView === 'overview' && (
@@ -276,17 +332,32 @@ function AppContent() {
                 monthlyTrend={analytics.monthlyTrend}
                 propertyComparison={analytics.propertyComparison}
                 areaOpportunities={analytics.areaOpportunities}
+                opportunities={analytics.opportunities}
+                valuations={analytics.valuations}
+                transactionActions={transactionActions}
               />
             )}
             {activeView === 'transactions' && (
               <Stack spacing={2}>
-                <SectionHeader title="Filtered transaction records" description={`${formatNumber(analytics.transactions.length)} asset-level records. Repeated transaction numbers indicate multi-asset procedures.`} />
-                <TransactionReviewAccess auth={auth} onError={showError} />
+                <SectionHeader
+                  title="Filtered transaction records"
+                  description={`${formatNumber(transactionRows.length)} asset-level records${showFavoritesOnly ? ' in your saved evidence' : ''}. Repeated transaction numbers indicate multi-asset procedures.`}
+                  action={(
+                    <Button
+                      variant={showFavoritesOnly ? 'contained' : 'outlined'}
+                      startIcon={<StarRoundedIcon />}
+                      disabled={!canFavorite}
+                      onClick={() => setShowFavoritesOnly((current) => !current)}
+                      sx={{ minHeight: 44 }}
+                    >
+                      Saved only ({formatNumber(favorites.transactionNumbers.size)})
+                    </Button>
+                  )}
+                />
+                <TransactionReviewAccess auth={auth} canReview={favorites.canReview} onError={showError} />
                 <TransactionDataGrid
-                  rows={analytics.transactions}
-                  canReview={Boolean(auth.user && auth.accessToken)}
-                  pendingTransactionNumber={pendingTransactionNumber}
-                  onReview={handleReview}
+                  rows={transactionRows}
+                  {...transactionActions}
                 />
               </Stack>
             )}

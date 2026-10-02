@@ -16,6 +16,7 @@ import {
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import TransactionValueChart from './TransactionValueChart';
 import TrendMap from './TrendMap';
+import TransactionActionButtons from '../tables/TransactionActionButtons';
 import {
   buildTransactionValueHistory,
   summarizeTrendTransactions,
@@ -95,9 +96,37 @@ export default function TrendTransactionsDialog({
   dimensionHeading,
   transactions,
   mapData,
+  canFavorite,
+  canReview,
+  favoriteTransactionNumbers,
+  pendingFavoriteTransactionNumber,
+  pendingTransactionNumber,
+  onFavorite,
+  onReview,
 }) {
   const { areaLabel, priceFromSqm } = useMeasurementUnit();
-  const displayColumns = useMeasurementColumns(columns);
+  const actionColumns = useMemo(() => [{
+    field: 'actions',
+    headerName: 'Actions',
+    description: 'Save personal evidence or review the complete transaction number.',
+    width: 148,
+    sortable: false,
+    filterable: false,
+    disableColumnMenu: true,
+    renderCell: ({ row }) => (
+      <TransactionActionButtons
+        row={row}
+        canFavorite={canFavorite}
+        canReview={canReview}
+        favoriteTransactionNumbers={favoriteTransactionNumbers}
+        pendingFavoriteTransactionNumber={pendingFavoriteTransactionNumber}
+        pendingTransactionNumber={pendingTransactionNumber}
+        onFavorite={onFavorite}
+        onReview={onReview}
+      />
+    ),
+  }, ...columns], [canFavorite, canReview, favoriteTransactionNumbers, onFavorite, onReview, pendingFavoriteTransactionNumber, pendingTransactionNumber]);
+  const displayColumns = useMeasurementColumns(actionColumns);
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
   const chartData = useMemo(() => buildTransactionValueHistory(transactions), [transactions]);

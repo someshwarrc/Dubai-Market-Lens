@@ -1,7 +1,9 @@
 import { useMeasurementColumns } from '../../hooks/useMeasurementUnit';
+import { useMemo } from 'react';
 import { Chip, Stack, Typography } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import DataTableFrame from './DataTableFrame';
+import TransactionActionButtons from './TransactionActionButtons';
 import { formatAed, formatDate, formatNumber, formatPercent } from '../../utils/formatters';
 
 const confidenceColor = { High: 'success', Medium: 'warning', Exploratory: 'default' };
@@ -50,10 +52,41 @@ const columns = [
   { field: 'transactionNumber', headerName: 'Transaction no.', width: 145 },
 ];
 
-export default function OpportunityDataGrid({ rows }) {
-  const displayColumns = useMeasurementColumns(columns);
+export default function OpportunityDataGrid({
+  rows,
+  height = 640,
+  canFavorite,
+  canReview,
+  favoriteTransactionNumbers,
+  pendingFavoriteTransactionNumber,
+  pendingTransactionNumber,
+  onFavorite,
+  onReview,
+}) {
+  const actionColumns = useMemo(() => [{
+    field: 'actions',
+    headerName: 'Actions',
+    description: 'Save personal evidence or review the complete transaction number.',
+    width: 148,
+    sortable: false,
+    filterable: false,
+    disableColumnMenu: true,
+    renderCell: ({ row }) => (
+      <TransactionActionButtons
+        row={row}
+        canFavorite={canFavorite}
+        canReview={canReview}
+        favoriteTransactionNumbers={favoriteTransactionNumbers}
+        pendingFavoriteTransactionNumber={pendingFavoriteTransactionNumber}
+        pendingTransactionNumber={pendingTransactionNumber}
+        onFavorite={onFavorite}
+        onReview={onReview}
+      />
+    ),
+  }, ...columns], [canFavorite, canReview, favoriteTransactionNumbers, onFavorite, onReview, pendingFavoriteTransactionNumber, pendingTransactionNumber]);
+  const displayColumns = useMeasurementColumns(actionColumns);
   return (
-    <DataTableFrame height={640}>
+    <DataTableFrame height={height}>
       <DataGrid
         rows={rows}
         columns={displayColumns}

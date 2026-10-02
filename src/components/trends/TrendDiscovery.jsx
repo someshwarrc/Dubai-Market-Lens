@@ -41,7 +41,17 @@ const matchesDirection = (row, direction) => {
   return row.direction.toLowerCase() === direction;
 };
 
-export default function TrendDiscovery({ transactions, areaLocations }) {
+export default function TrendDiscovery({
+  transactions,
+  areaLocations,
+  canFavorite,
+  canReview,
+  favoriteTransactionNumbers,
+  pendingFavoriteTransactionNumber,
+  pendingTransactionNumber,
+  onFavorite,
+  onReview,
+}) {
   const { priceLabel } = useMeasurementUnit();
   const [dimension, setDimension] = useState('developer');
   const [direction, setDirection] = useState('all');
@@ -221,6 +231,13 @@ export default function TrendDiscovery({ transactions, areaLocations }) {
         dimensionHeading={transactionGroup ? TREND_DIMENSIONS[transactionGroup.dimension].heading : ''}
         transactions={transactionRows}
         mapData={transactionMapData}
+        canFavorite={canFavorite}
+        canReview={canReview}
+        favoriteTransactionNumbers={favoriteTransactionNumbers}
+        pendingFavoriteTransactionNumber={pendingFavoriteTransactionNumber}
+        pendingTransactionNumber={pendingTransactionNumber}
+        onFavorite={onFavorite}
+        onReview={onReview}
       />
     </Stack>
   );

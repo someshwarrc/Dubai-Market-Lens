@@ -17,10 +17,10 @@ const columns = [
   { field: 'pricePerSqm', headerName: 'Valuation AED/m²', width: 170, type: 'number', renderCell: ({ value }) => formatAed(value, false) },
 ];
 
-export default function ValuationDataGrid({ rows }) {
+export default function ValuationDataGrid({ rows, height = 'calc(100vh - 240px)' }) {
   const displayColumns = useMeasurementColumns(columns);
   return (
-    <DataTableFrame height="calc(100vh - 240px)">
+    <DataTableFrame height={height}>
       <DataGrid
         rows={rows}
         columns={displayColumns}

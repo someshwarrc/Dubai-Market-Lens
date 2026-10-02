@@ -55,6 +55,26 @@ export const reviewApiTransaction = async ({ transactionNumber, decision, access
   });
 };
 
+export const loadApiTransactionFavorites = async (accessToken) => {
+  if (!configuredBaseUrl || !accessToken) return { items: [], canReview: false };
+  return fetchJson(`${configuredBaseUrl}/operations/transactions/favorites`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+};
+
+export const favoriteApiTransaction = async ({ transactionNumber, favorite, accessToken }) => {
+  if (!configuredBaseUrl) throw new Error('The market API is not configured.');
+  if (!accessToken) throw new Error('Sign in with Google to save transaction evidence.');
+  return fetchJson(`${configuredBaseUrl}/operations/transactions/favorites`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ transactionNumber, favorite }),
+  });
+};
+
 export const updateCachedTransactionReview = async ({ transactionNumber, decision, restoreRows = [] }) => {
   const cached = await readCache().catch(() => null);
   if (!cached?.transactions) return;

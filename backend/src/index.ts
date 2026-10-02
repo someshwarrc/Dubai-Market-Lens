@@ -6,3 +6,4 @@ import './functions/runTransactionSync.js';
 import './functions/scheduledTransactionSync.js';
 import './functions/health.js';
 import './functions/reviewTransaction.js';
+import './functions/transactionFavorites.js';

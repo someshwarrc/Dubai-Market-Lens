@@ -134,6 +134,10 @@ module api './app/api.bicep' = {
     identityClientId: apiUserAssignedIdentity.outputs.clientId
     keyVaultAccessIdentityResourceId: apiUserAssignedIdentity.outputs.resourceId
     maximumInstanceCount: 2
+    allowedCorsOrigins: [
+      portalAllowedOrigin
+      'http://localhost:5173'
+    ]
     appSettings: {
       DLD_SYNC_SCHEDULE: '0 15 2 * * 1,4'
       DLD_SYNC_OVERLAP_DAYS: '3'
